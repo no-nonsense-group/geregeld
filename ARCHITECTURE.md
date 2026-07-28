@@ -50,6 +50,12 @@ followed by `save()`.
 Cross-context calls use explicit public application contracts. A context never
 imports another context's infrastructure.
 
+Platform UI translations and organization terminology are separate. The UI has
+a finite catalog of supported locales. Organization-defined labels are
+database-backed, accept arbitrary locale codes, and resolve through requested
+locale → base language → organization default → product fallback. Theme is a
+device-local presentation preference, not domain data.
+
 ## Code organization
 
 ```text

@@ -5,9 +5,10 @@ Last updated: 2026-07-28
 
 ## Product
 
-Geregeld is a multi-tenant scheduling application for small businesses.
-Authenticated business users publish availability and manage appointments.
-Clients book and manage an appointment without creating an account.
+Geregeld is simple, affordable scheduling software for independent
+professionals and small and medium-sized service businesses. Business users
+publish availability and manage appointments; clients book and manage an
+appointment without creating an account.
 
 Initial non-goals include billing, payments, native apps, marketplace discovery,
 external calendars, point-of-sale integrations, and complex resource
@@ -27,6 +28,10 @@ optimization.
 
 “Booking” is the provisional stable internal term. Organizations may configure
 client-facing labels without changing code or database terminology.
+
+The platform UI initially supports Dutch and English. Organizations may store
+their own labels in any configured language; these labels do not replace or
+extend the platform translation catalog.
 
 ## Ownership and access
 
