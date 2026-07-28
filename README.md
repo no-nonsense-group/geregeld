@@ -1,3 +1,42 @@
+# Geregeld
+
+Full-stack scheduling application built with TanStack Start, React,
+TypeScript, Effect, TanStack Query, Effect SQL, and shadcn/ui.
+
+Product and technical decisions are documented in:
+
+- [`REQUIREMENTS.md`](./REQUIREMENTS.md)
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+
+## Development
+
+The project uses Bun for package management and Node 26 for the TanStack Start
+development runtime. Select the repository's Node version, install
+dependencies, and start the development server:
+
+```sh
+nvm install
+nvm use
+bun install
+bun run dev
+```
+
+The application is available at `http://localhost:3000`.
+
+Other Node major versions are rejected so local development, CI, and production
+use the same runtime.
+
+## Quality checks
+
+```sh
+bun run check
+bun run typecheck
+bun run test
+bun run build
+```
+
+Copy `.env.example` to `.env` when database-backed behavior is introduced.
+
 ## License
 
 Geregeld is source-available under the PolyForm Noncommercial
