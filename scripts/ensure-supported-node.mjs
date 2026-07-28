@@ -1,12 +1,12 @@
 const [major] = process.versions.node.split(".").map(Number);
 
-const supported = major === 26;
+const supported = major === 24;
 
 if (!supported) {
 	console.error(
 		[
 			`Unsupported Node.js version: ${process.versions.node}.`,
-			"Geregeld requires Node 26.",
+			"Geregeld requires Node 24.",
 			"Run `nvm install` followed by `nvm use`, then retry `bun run dev`.",
 		].join("\n"),
 	);

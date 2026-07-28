@@ -10,7 +10,7 @@ Product and technical decisions are documented in:
 
 ## Development
 
-The project uses Bun for package management and Node 26 for the TanStack Start
+The project uses Bun for package management and Node 24 for the TanStack Start
 development runtime. Select the repository's Node version, install
 dependencies, and start the development server:
 
@@ -23,8 +23,8 @@ bun run dev
 
 The application is available at `http://localhost:3000`.
 
-Other Node major versions are rejected so local development, CI, and production
-use the same runtime.
+Other Node major versions are rejected so local development, CI, and Vercel
+production all use the same Node 24 runtime.
 
 ## Quality checks
 
