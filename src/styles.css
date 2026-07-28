@@ -20,6 +20,7 @@ body,
 body {
   margin: 0;
   min-width: 320px;
+  text-rendering: optimizeLegibility;
 }
 
 :root {
@@ -142,6 +143,66 @@ body {
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply scroll-smooth font-sans;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-[86rem] px-5 sm:px-8 lg:px-12;
+  }
+
+  .section-space {
+    @apply py-24 sm:py-32;
+  }
+
+  .eyebrow {
+    @apply flex items-center gap-2.5 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.2em];
+  }
+
+  .section-heading {
+    @apply max-w-3xl;
+  }
+
+  .section-heading h2 {
+    @apply mt-6 text-balance font-heading font-semibold text-4xl tracking-[-0.045em] sm:text-6xl;
+  }
+
+  .section-heading > p:last-child {
+    @apply mt-6 max-w-xl text-lg text-muted-foreground leading-relaxed;
+  }
+
+  .button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 font-semibold text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/45 active:translate-y-px;
+  }
+
+  .button-small {
+    @apply min-h-9 px-4 text-xs;
+  }
+
+  .button-primary {
+    @apply bg-primary text-primary-foreground shadow-[0_8px_24px_-12px_oklch(0.508_0.118_165.612)] hover:bg-primary/90;
+  }
+
+  .button-dark {
+    @apply bg-foreground text-background hover:bg-foreground/85;
+  }
+
+  .button-ghost {
+    @apply border bg-card text-foreground hover:bg-muted;
+  }
+
+  .nav-link {
+    @apply transition-colors hover:text-foreground focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45;
+  }
+}
+
+@layer utilities {
+  .landing-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklch, var(--border), transparent 50%) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--border), transparent 50%) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    mask-image: linear-gradient(to bottom, black, transparent 82%);
   }
 }

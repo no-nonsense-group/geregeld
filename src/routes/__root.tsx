@@ -20,7 +20,33 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "Geregeld",
+				title: "Geregeld — Afspraken plannen zonder gedoe",
+			},
+			{
+				name: "description",
+				content:
+					"Minimalistische planningsoftware voor kleine bedrijven. Jij bepaalt de regels, je klanten boeken zelf.",
+			},
+			{
+				property: "og:title",
+				content: "Geregeld — Afspraken plannen zonder gedoe",
+			},
+			{
+				property: "og:description",
+				content:
+					"Jij bepaalt wanneer, wat en onder welke voorwaarden. Je klanten boeken zelf.",
+			},
+			{
+				property: "og:type",
+				content: "website",
+			},
+			{
+				property: "og:image",
+				content: "/og.png",
+			},
+			{
+				name: "twitter:card",
+				content: "summary_large_image",
 			},
 		],
 		links: [
@@ -35,7 +61,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="nl">
 			<head>
 				<HeadContent />
 			</head>
