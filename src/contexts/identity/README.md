@@ -1,5 +1,5 @@
 # Identity
 
-Reserved for business-user identity, authentication, invitations, and
-organization membership behavior.
-
+Owns business-user identity, authentication, and sessions. Organization
+membership, invitations, roles, and tenant authorization belong to
+Organizations.

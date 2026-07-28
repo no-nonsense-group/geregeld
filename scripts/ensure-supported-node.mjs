@@ -7,7 +7,7 @@ if (!supported) {
 		[
 			`Unsupported Node.js version: ${process.versions.node}.`,
 			"Geregeld requires Node 24.",
-			"Run `nvm install` followed by `nvm use`, then retry `bun run dev`.",
+			"Run `nvm install` followed by `nvm use`, then retry.",
 		].join("\n"),
 	);
 	process.exit(1);

@@ -1,5 +1,5 @@
 # Organizations
 
-Reserved for organization ownership, configuration, terminology, and
-membership administration behavior.
-
+Owns tenants, membership, invitations, roles, authorization, terminology, and
+configuration—including organization-selected booking rules and constraints.
+It publishes effective policy for booking workflows to enforce.

@@ -11,14 +11,15 @@
   },
   "scripts": {
     "dev": "node scripts/ensure-supported-node.mjs && vite dev --port 3000",
-    "generate-routes": "tsr generate",
-    "build": "vite build",
-    "preview": "vite preview",
-    "format": "biome format --write .",
-    "lint": "biome lint .",
-    "check": "biome check .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "generate-routes": "node scripts/ensure-supported-node.mjs && tsr generate",
+    "build": "node scripts/ensure-supported-node.mjs && vite build",
+    "preview": "node scripts/ensure-supported-node.mjs && vite preview",
+    "format": "node scripts/ensure-supported-node.mjs && biome format --write .",
+    "lint": "node scripts/ensure-supported-node.mjs && biome lint .",
+    "check": "node scripts/ensure-supported-node.mjs && biome check .",
+    "typecheck": "node scripts/ensure-supported-node.mjs && tsc --noEmit",
+    "test": "node scripts/ensure-supported-node.mjs && vitest run",
+    "quality": "node scripts/ensure-supported-node.mjs && biome check . && tsc --noEmit && vitest run && vite build"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",

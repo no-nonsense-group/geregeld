@@ -29,11 +29,10 @@ production all use the same Node 24 runtime.
 ## Quality checks
 
 ```sh
-bun run check
-bun run typecheck
-bun run test
-bun run build
+bun run quality
 ```
+
+Every project script checks for Node 24 before invoking its tool.
 
 Copy `.env.example` to `.env` when database-backed behavior is introduced.
 

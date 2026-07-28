@@ -1,15 +1,17 @@
 # Bounded contexts
 
-Business code is organized first by bounded context and then by vertical use
-case. A context owns its domain language, application ports, persistence
-adapters, and slices.
-
-New behavior should normally begin under:
+Business code is organized by context, then use case:
 
 ```text
 contexts/<context>/slices/<use-case>/
 ```
 
-Only promote code to a context-level `domain`, `application`, or
-`infrastructure` folder after multiple slices genuinely share it.
+| Context | Owns |
+| --- | --- |
+| Identity | User identity, authentication, sessions |
+| Organizations | Tenants, membership, roles, configuration, booking rules |
+| Scheduling | Services, availability, candidate slots |
+| Bookings | Appointment entity and lifecycle |
 
+Promote code to context-level folders only when multiple slices share it.
+Cross-context calls use public application contracts.
