@@ -1,10 +1,12 @@
 import "@tanstack/react-start/server-only";
 
-import { dash } from "@better-auth/infra";
+import { dash, sendEmail } from "@better-auth/infra";
 import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 
-import { pgPool } from "#/platform/database/pg-pool.server";
+import { database } from "#/platform/database/drizzle.server";
+import * as schema from "#/platform/database/schema";
 import { storeDevelopmentRegistrationCode } from "./development-registration-inbox.server";
 import { registrationPlugin } from "./registration-plugin.server";
 
@@ -22,13 +24,67 @@ function resolveAuthSecret(): string {
   return "geregeld-development-only-secret-change-me";
 }
 
+function resolveAuthBaseUrl(): string {
+  if (process.env.BETTER_AUTH_URL) {
+    return process.env.BETTER_AUTH_URL;
+  }
+
+  const vercelHostname =
+    process.env.VERCEL_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+  if (vercelHostname) {
+    return `https://${vercelHostname}`;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("BETTER_AUTH_URL is required outside Vercel production");
+  }
+
+  return "http://localhost:3000";
+}
+
 const secret = resolveAuthSecret();
+const baseURL = resolveAuthBaseUrl();
+
+async function sendRegistrationCode(input: {
+  readonly email: string;
+  readonly code: string;
+}): Promise<void> {
+  if (process.env.NODE_ENV !== "production") {
+    storeDevelopmentRegistrationCode(input.email, input.code);
+    return;
+  }
+
+  const result = await sendEmail(
+    {
+      template: "verify-email-otp",
+      to: input.email,
+      variables: {
+        otpCode: input.code,
+        userEmail: input.email,
+        appName: "Geregeld",
+        expirationMinutes: "5",
+      },
+    },
+    {
+      apiKey: process.env.BETTER_AUTH_API_KEY,
+      apiUrl: process.env.BETTER_AUTH_API_URL,
+    },
+  );
+
+  if (!result.success) {
+    throw new Error(`Registration email failed: ${result.error}`);
+  }
+}
 
 export const auth = betterAuth({
   appName: "Geregeld",
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL,
   secret,
-  database: pgPool,
+  database: drizzleAdapter(database, {
+    provider: "pg",
+    schema,
+  }),
   advanced: {
     database: {
       generateId: "uuid",
@@ -54,9 +110,7 @@ export const auth = betterAuth({
     }),
     registrationPlugin({
       secret,
-      sendCode: async ({ email, code }) => {
-        storeDevelopmentRegistrationCode(email, code);
-      },
+      sendCode: sendRegistrationCode,
     }),
     tanstackStartCookies(),
   ],

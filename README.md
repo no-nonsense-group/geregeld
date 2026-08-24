@@ -40,8 +40,23 @@ bun run quality
 
 Every project script checks for Node 24 before invoking its tool.
 
-Copy `.env.example` to `.env` and set the database connection before using the
-registration flow.
+Copy `.env.example` to `.env` and set the database connections before using the
+registration flow. The application uses `DATABASE_URL`; Drizzle Kit uses
+`DATABASE_URL_UNPOOLED` so schema migrations bypass the connection pool.
+
+Apply pending migrations before starting the app:
+
+```sh
+bun run db:migrate
+```
+
+The TypeScript schema in `src/platform/database/schema.ts` is the source of
+truth. After changing it, generate and review a migration:
+
+```sh
+bun run db:generate
+bun run db:check
+```
 
 ## License
 
