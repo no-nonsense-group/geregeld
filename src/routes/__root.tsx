@@ -1,8 +1,8 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import {
-	createRootRouteWithContext,
-	HeadContent,
-	Scripts,
+  createRootRouteWithContext,
+  HeadContent,
+  Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
@@ -29,96 +29,100 @@ const localeScript = `try {
 } catch {}`;
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-	validateSearch: (search: Record<string, unknown>) => ({
-		lang: resolveUiLocale(search.lang),
-	}),
-	head: ({ match }) => {
-		const copy = landingCopy[resolveUiLocale(match.search.lang)];
+  validateSearch: (search: Record<string, unknown>) => ({
+    lang: resolveUiLocale(search.lang),
+  }),
+  head: ({ match }) => {
+    const copy = landingCopy[resolveUiLocale(match.search.lang)];
 
-		return {
-			meta: [
-				{
-					charSet: "utf-8",
-				},
-				{
-					name: "viewport",
-					content: "width=device-width, initial-scale=1",
-				},
-				{
-					title: copy.meta.title,
-				},
-				{
-					name: "description",
-					content: copy.meta.description,
-				},
-				{
-					property: "og:title",
-					content: copy.meta.title,
-				},
-				{
-					property: "og:description",
-					content: copy.meta.socialDescription,
-				},
-				{
-					property: "og:type",
-					content: "website",
-				},
-				{
-					property: "og:image",
-					content: "/og.png",
-				},
-				{
-					name: "twitter:card",
-					content: "summary_large_image",
-				},
-				{
-					name: "twitter:title",
-					content: copy.meta.title,
-				},
-				{
-					name: "twitter:description",
-					content: copy.meta.socialDescription,
-				},
-				{
-					name: "twitter:image",
-					content: "/og.png",
-				},
-			],
-			links: [
-				{
-					rel: "stylesheet",
-					href: appCss,
-				},
-			],
-		};
-	},
-	shellComponent: RootDocument,
+    return {
+      meta: [
+        {
+          charSet: "utf-8",
+        },
+        {
+          name: "viewport",
+          content: "width=device-width, initial-scale=1",
+        },
+        {
+          title: copy.meta.title,
+        },
+        {
+          name: "description",
+          content: copy.meta.description,
+        },
+        {
+          property: "og:title",
+          content: copy.meta.title,
+        },
+        {
+          property: "og:description",
+          content: copy.meta.socialDescription,
+        },
+        {
+          property: "og:type",
+          content: "website",
+        },
+        {
+          property: "og:image",
+          content: "/og.png",
+        },
+        {
+          name: "twitter:card",
+          content: "summary_large_image",
+        },
+        {
+          name: "twitter:title",
+          content: copy.meta.title,
+        },
+        {
+          name: "twitter:description",
+          content: copy.meta.socialDescription,
+        },
+        {
+          name: "twitter:image",
+          content: "/og.png",
+        },
+      ],
+      links: [
+        {
+          rel: "stylesheet",
+          href: appCss,
+        },
+      ],
+    };
+  },
+  shellComponent: RootDocument,
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-	const { lang } = Route.useSearch();
+  const { lang } = Route.useSearch();
 
-	return (
-		<html lang={lang} suppressHydrationWarning>
-			<head>
-				<script>{localeScript}</script>
-				<HeadContent />
-			</head>
-			<body>
-				{children}
-				<TanStackDevtools
-					config={{
-						position: "bottom-right",
-					}}
-					plugins={[
-						{
-							name: "Tanstack Router",
-							render: <TanStackRouterDevtoolsPanel />,
-						},
-					]}
-				/>
-				<Scripts />
-			</body>
-		</html>
-	);
+  return (
+    <html
+      lang={lang}
+      className="scheme-light scroll-smooth font-sans motion-reduce:scroll-auto"
+      suppressHydrationWarning
+    >
+      <head>
+        <script>{localeScript}</script>
+        <HeadContent />
+      </head>
+      <body className="min-w-80 bg-background text-foreground [text-rendering:optimizeLegibility]">
+        {children}
+        <TanStackDevtools
+          config={{
+            position: "bottom-right",
+          }}
+          plugins={[
+            {
+              name: "Tanstack Router",
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+          ]}
+        />
+        <Scripts />
+      </body>
+    </html>
+  );
 }

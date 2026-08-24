@@ -6,8 +6,8 @@ Last updated: 2026-07-28
 ## Product
 
 Geregeld is simple, affordable scheduling software for independent
-professionals and small and medium-sized service businesses. Business users
-publish availability and manage appointments; clients book and manage an
+professionals and small and medium-sized service businesses. Owners publish
+availability and manage appointments; clients book and manage an
 appointment without creating an account.
 
 Initial non-goals include billing, payments, native apps, marketplace discovery,
@@ -19,7 +19,7 @@ optimization.
 | Internal term | Meaning |
 | --- | --- |
 | Organization | A business or independently managed tenant |
-| Business user | An authenticated user with organization access |
+| User | A person with a verified email identity who can authenticate |
 | Client | A person making a booking without an account |
 | Service | Something a client can book |
 | Availability | Rules and exceptions that determine possible times |
@@ -35,13 +35,14 @@ extend the platform translation catalog.
 
 ## Ownership and access
 
-- **Owner:** full organization control, including settings and membership.
-- **Admin:** operational control, excluding ownership-only actions.
-- **Staff:** later, with narrower permissions.
+- **Owner:** a User with full control of an Organization.
+- Additional organization users and roles are later and invite-only.
 - **Client:** public booking access plus a secure management link.
 
-Identity owns authentication. Organizations owns invitations, membership,
-roles, tenant authorization, and configuration.
+Identity owns registration, authentication, sessions, and the User's verified
+email. Organizations owns Organizations, ownership, authorization, and
+configuration. Future invitations and employee access also belong to
+Organizations.
 
 Every organization operation must verify membership and permission server-side.
 Every tenant-owned record belongs directly or transitively to one organization.
@@ -66,6 +67,29 @@ explanation and audit. A Booking represents the appointment; it does not decide
 which rules an organization offers or enables.
 
 ## Core behavior
+
+### Register and sign in
+
+- Registration is self-service: anyone with access to an email address may
+  begin the flow.
+- Authentication uses a one-time code sent by email; Geregeld does not accept a
+  password.
+- Requesting a code creates only a short-lived registration challenge, not a
+  User.
+- A valid code for an unused email creates the User and an authenticated
+  session. A valid code for an existing User returns an already-registered
+  error without creating a session; the email's existence is not disclosed
+  before verification.
+- The User stores the verified email address. Registration rejects an email
+  already held by a User.
+- Registration and organization setup are separate steps. A User
+  can sign in and resume organization setup after a session expires.
+- The first release permits one organization per registered person without
+  making future multi-organization membership impossible.
+- Registration and code-verification endpoints require rate limiting and abuse
+  protection. The exact controls and thresholds remain to be defined.
+- The registration screen is one route with an email state followed by a
+  six-digit-code state. The email is not placed in the URL.
 
 ### Configure scheduling
 
@@ -97,13 +121,13 @@ must not roll back a valid booking.
 - A secure, revocable management token reveals only the required booking data.
 - Clients may reschedule or cancel when current policy permits.
 - Policy and availability are revalidated when an action is submitted.
-- Business users may manage bookings when authorized.
+- Owners may manage bookings when authorized.
 - Important changes and any future policy overrides are audited.
 
 Raw management tokens should not be stored. Expiry behavior remains an open
 decision.
 
-### Admin experience
+### Owner experience
 
 - Day and week views show availability, bookings, closures, and cancellations
   in the organization time zone.
@@ -113,8 +137,9 @@ decision.
 
 ### Notifications and history
 
-Transactional email covers invitations and booking confirmation, change, and
-cancellation. Delivery is asynchronous, observable, and retryable.
+Transactional email covers booking confirmation, change, and cancellation.
+Delivery is asynchronous, observable, and retryable. Invitation email is added
+when additional organization users enter scope.
 
 Audit history records actor, source, booking lifecycle changes, policy
 overrides, material availability changes, and membership changes.
@@ -123,8 +148,11 @@ overrides, material availability changes, and membership changes.
 
 - Organization identifiers from clients are untrusted.
 - Authorization is enforced in every protected server operation.
-- Public, authentication, invitation, booking, and magic-link endpoints need
-  rate limiting and abuse protection.
+- Geregeld has no medical-record, special-category-data, or unrestricted
+  client-notes fields. It does not claim that booking metadata can never imply
+  sensitive information.
+- Public, registration, authentication, booking, and management-link endpoints
+  need rate limiting and abuse protection.
 - Sensitive tokens, credentials, and unnecessary personal data are not logged.
 - Retention, deletion, and export behavior must be defined before production.
 - Design and operation must account for applicable GDPR obligations.
@@ -133,8 +161,8 @@ overrides, material availability changes, and membership changes.
 
 Current proposed scope:
 
-- Registration and sign-in
-- Owner and admin roles
+- Self-service registration and sign-in by emailed one-time code
+- One Owner role; additional organization users and roles are later
 - One organization per owner initially without blocking future membership in
   multiple organizations
 - Fixed-duration services
@@ -142,8 +170,8 @@ Current proposed scope:
 - Capacity one and immediate confirmation
 - Public booking, cancellation, and rescheduling
 - Confirmation email and secure management link
-- Admin day/week calendar
-- Invitation flow, tenant isolation, audit history, and abuse protection
+- Owner day/week calendar
+- Tenant isolation, audit history, and abuse protection
 
 Restaurants, group capacity, party size, staff selection, physical resources,
 manual approval, payments, reminders, and integrations are later unless the
@@ -169,8 +197,8 @@ first target customer requires them.
 6. Immediate confirmation versus optional approval
 7. Required and custom client fields
 8. Management-link expiry
-9. Email verification and reminders
-10. Admin policy overrides
+9. Reminders
+10. Owner policy overrides
 11. Effect of scheduling changes on existing bookings
 12. Providers for auth, database, email, jobs, and hosting
 

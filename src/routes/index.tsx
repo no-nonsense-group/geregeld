@@ -1,285 +1,238 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-	ArrowRight,
-	Braces,
-	Check,
-	CircleDollarSign,
-	ListChecks,
-	ShieldCheck,
-	UsersRound,
-} from "lucide-react";
+import { Play } from "lucide-react";
 
 import { landingCopy } from "#/content/landing";
 import { uiLocales } from "#/shared/i18n";
 
 export const Route = createFileRoute("/")({
-	component: Home,
+  component: Home,
 });
 
-const promiseIcons = [ListChecks, CircleDollarSign, UsersRound] as const;
-
-function mailto(subject: string) {
-	return `mailto:danielagg@outlook.com?subject=${encodeURIComponent(subject)}`;
-}
-
 function Home() {
-	const { lang } = Route.useSearch();
-	const copy = landingCopy[lang];
+  const { lang } = Route.useSearch();
+  const copy = landingCopy[lang];
+  const getStartedHref = `/register?lang=${lang}`;
 
-	return (
-		<div className="min-h-screen overflow-hidden bg-background text-foreground">
-			<a
-				href="#main"
-				className="sr-only z-50 rounded-full bg-foreground px-4 py-2 text-background focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
-			>
-				{copy.controls.skip}
-			</a>
+  return (
+    <div className="min-h-screen overflow-hidden bg-background text-foreground">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-full bg-foreground px-4 py-2 text-background focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
+      >
+        {copy.controls.skip}
+      </a>
 
-			<header className="relative z-20 border-border border-b bg-background/90 backdrop-blur-xl">
-				<div className="page-shell flex h-16 items-center justify-between gap-4">
-					<a
-						href={`/?lang=${lang}`}
-						className="flex items-center gap-2.5 font-heading font-semibold text-lg tracking-[-0.03em]"
-						aria-label={copy.controls.home}
-					>
-						<span className="brand-mark" aria-hidden="true">
-							G
-						</span>
-						Geregeld
-					</a>
+      <header className="relative z-20 border-border border-b bg-background/92 backdrop-blur-xl">
+        <div className="mx-auto flex h-[4.5rem] w-full max-w-[86rem] items-center gap-4 px-5 sm:px-8 lg:px-12">
+          <a
+            href={`/?lang=${lang}`}
+            className="shrink-0 font-heading font-semibold text-xl tracking-[-0.04em]"
+            aria-label={copy.controls.home}
+          >
+            Geregeld
+          </a>
 
-					<nav
-						className="hidden items-center gap-7 text-muted-foreground text-sm md:flex"
-						aria-label="Primary"
-					>
-						<a className="nav-link" href="#promise">
-							{copy.navigation.principles}
-						</a>
+          <nav
+            className="mx-auto hidden items-center gap-7 text-muted-foreground text-sm lg:flex"
+            aria-label="Primary"
+          >
+            <a
+              className="transition-colors hover:text-foreground"
+              href="#how-it-works"
+            >
+              {copy.navigation.howItWorks}
+            </a>
+            <a
+              className="transition-colors hover:text-foreground"
+              href="#pricing"
+            >
+              {copy.navigation.pricing}
+            </a>
+            <a
+              className="transition-colors hover:text-foreground"
+              href="#about"
+            >
+              {copy.navigation.about}
+            </a>
+          </nav>
 
-					</nav>
+          <div className="ml-auto flex items-center gap-2 sm:gap-3 lg:ml-0">
+            <fieldset className="flex items-center gap-2 pr-1 text-xs sm:gap-3 sm:text-sm">
+              <legend className="sr-only">{copy.controls.language}</legend>
+              {uiLocales.map((locale) => (
+                <a
+                  key={locale}
+                  href={`/?lang=${locale}`}
+                  aria-current={lang === locale ? "page" : undefined}
+                  className="uppercase text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground"
+                >
+                  {locale}
+                </a>
+              ))}
+            </fieldset>
+            <a
+              className="hidden min-h-10 items-center justify-center rounded-full px-3 font-semibold text-sm transition-colors hover:bg-muted sm:inline-flex"
+              href="/login"
+            >
+              {copy.actions.login}
+            </a>
+            <a
+              className="inline-flex min-h-10 items-center justify-center rounded-full bg-foreground px-4 font-semibold text-background text-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
+              href={getStartedHref}
+            >
+              {copy.actions.getStarted}
+            </a>
+          </div>
+        </div>
+      </header>
 
-					<div className="flex items-center gap-2 sm:gap-3">
-						<fieldset className="flex items-center rounded-full border bg-card p-0.5">
-							<legend className="sr-only">{copy.controls.language}</legend>
-							{uiLocales.map((locale) => (
-								<a
-									key={locale}
-									href={`/?lang=${locale}`}
-									aria-current={lang === locale ? "page" : undefined}
-									className="rounded-full px-2.5 py-1.5 font-semibold text-[0.65rem] uppercase tracking-wide transition-colors aria-[current=page]:bg-foreground aria-[current=page]:text-background"
-								>
-									{locale}
-								</a>
-							))}
-						</fieldset>
+      <main id="main">
+        <section className="relative border-border border-b bg-[radial-gradient(circle_at_82%_42%,oklch(0.91_0.055_149/0.68),transparent_34%)]">
+          <div className="mx-auto grid min-h-[calc(100svh-4.5rem)] w-full max-w-[86rem] items-center gap-14 px-5 py-16 sm:px-8 lg:grid-cols-[0.95fr_1.05fr] lg:px-12 lg:py-20">
+            <div className="max-w-3xl">
+              <p className="inline-flex rounded-full border border-primary/25 bg-primary/9 px-3 py-1.5 font-semibold text-primary text-sm">
+                {copy.hero.offer}
+              </p>
+              <h1 className="mt-7 max-w-3xl text-balance font-heading font-semibold text-[clamp(3.6rem,7vw,7rem)] leading-[0.88] tracking-[-0.07em]">
+                {copy.hero.title}
+              </h1>
+              <p className="mt-8 max-w-xl text-pretty text-lg text-muted-foreground leading-relaxed sm:text-xl">
+                {copy.hero.description}
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <a
+                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 font-semibold text-primary-foreground text-sm transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
+                  href={getStartedHref}
+                >
+                  {copy.actions.getStarted}
+                </a>
+                <a
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-background/70 px-6 font-semibold text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
+                  href="/login"
+                >
+                  {copy.actions.login}
+                </a>
+              </div>
+              <p className="mt-4 text-muted-foreground text-sm">
+                {copy.hero.priceNote}
+              </p>
+            </div>
 
-			
-					</div>
-				</div>
-			</header>
+            <figure className="mx-auto w-full max-w-[44rem] lg:ml-auto">
+              <div
+                className="overflow-hidden rounded-[1.5rem] border border-border bg-card shadow-[0_32px_80px_-44px_oklch(0.23_0.035_151/0.3)]"
+                role="img"
+                aria-label={copy.demo.label}
+              >
+                <div
+                  className="flex items-center gap-1.5 border-border border-b px-4 py-3"
+                  aria-hidden="true"
+                >
+                  <span className="size-2 rounded-full bg-border" />
+                  <span className="size-2 rounded-full bg-border" />
+                  <span className="size-2 rounded-full bg-border" />
+                </div>
+                <div className="relative flex aspect-video items-center justify-center bg-[linear-gradient(145deg,oklch(0.965_0.016_148),oklch(0.91_0.04_149))] p-6 text-center">
+                  <div
+                    className="absolute inset-5 rounded-xl border border-foreground/8 bg-background/24"
+                    aria-hidden="true"
+                  />
+                  <div className="relative">
+                    <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-foreground text-background shadow-lg">
+                      <Play
+                        aria-hidden="true"
+                        className="ml-1 size-5 fill-current"
+                      />
+                    </span>
+                    <p className="mt-5 font-heading font-semibold text-2xl tracking-[-0.04em] sm:text-3xl">
+                      {copy.demo.title}
+                    </p>
+                    <p className="mt-2 text-foreground/58 text-sm">
+                      {copy.demo.status}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <figcaption className="mt-3 text-right text-muted-foreground text-xs">
+                {copy.demo.duration}
+              </figcaption>
+            </figure>
+          </div>
+        </section>
 
-			<main id="main">
-				<section className="hero-surface relative border-border border-b">
-					<div className="soft-grid absolute inset-0" />
-					<div className="page-shell relative grid min-h-[calc(100svh-4rem)] items-center gap-16 py-16 lg:grid-cols-[1.02fr_0.98fr] lg:py-20">
-						<div className="max-w-3xl">
+        <section className="bg-foreground text-background">
+          <div className="mx-auto w-full max-w-[86rem] px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+            <div className="max-w-3xl">
+              <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
+                {copy.overview.eyebrow}
+              </p>
+              <h2 className="mt-4 text-balance font-heading font-semibold text-5xl leading-[0.96] tracking-[-0.055em] sm:text-7xl">
+                {copy.overview.title}
+              </h2>
+            </div>
 
-							<h1 className="mt-7 max-w-3xl text-balance font-heading font-semibold text-[clamp(3.6rem,8vw,7.8rem)] leading-[0.86] tracking-[-0.072em]">
-								{copy.hero.title}
-							</h1>
-							<p className="mt-8 max-w-2xl text-pretty text-lg text-muted-foreground leading-relaxed sm:text-xl">
-								{copy.hero.description}
-							</p>
+            <div className="mt-14 grid border-background/16 border-t lg:grid-cols-3">
+              <article id="how-it-works" className="scroll-mt-24 py-9 lg:pr-10">
+                <h3 className="font-heading font-semibold text-2xl tracking-[-0.04em]">
+                  {copy.overview.howItWorks.title}
+                </h3>
+                <ol className="mt-8 space-y-5">
+                  {copy.overview.howItWorks.steps.map((step, index) => (
+                    <li
+                      key={step}
+                      className="flex gap-4 text-background/72 leading-relaxed"
+                    >
+                      <span className="font-semibold text-primary text-sm">
+                        0{index + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </article>
 
-							<div className="mt-9 flex flex-col gap-3 sm:flex-row">
-								<a
-									className="button button-primary"
-									href={mailto(copy.hero.subject)}
-								>
-									{copy.hero.primary}
-									<ArrowRight aria-hidden="true" className="size-4" />
-								</a>
+              <article
+                id="pricing"
+                className="scroll-mt-24 border-background/16 border-t py-9 lg:border-t-0 lg:border-l lg:px-10"
+              >
+                <h3 className="font-heading font-semibold text-2xl tracking-[-0.04em]">
+                  {copy.overview.pricing.title}
+                </h3>
+                <p className="mt-8 font-heading font-semibold text-4xl text-primary tracking-[-0.05em] sm:text-5xl">
+                  {copy.overview.pricing.offer}
+                </p>
+                <p className="mt-3 font-semibold text-lg">
+                  {copy.overview.pricing.price}
+                </p>
+                <p className="mt-5 max-w-sm text-background/62 leading-relaxed">
+                  {copy.overview.pricing.detail}
+                </p>
+              </article>
 
-							</div>
+              <article
+                id="about"
+                className="scroll-mt-24 border-background/16 border-t py-9 lg:border-t-0 lg:border-l lg:pl-10"
+              >
+                <h3 className="font-heading font-semibold text-2xl tracking-[-0.04em]">
+                  {copy.overview.about.title}
+                </h3>
+                <p className="mt-8 max-w-md text-background/72 text-lg leading-relaxed">
+                  {copy.overview.about.description}
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+      </main>
 
-
-						</div>
-
-						<div className="relative mx-auto w-full max-w-[35rem] lg:ml-auto">
-							<div className="preview-glow absolute -inset-16" />
-							<section
-								className="overview-card relative"
-								aria-label={copy.preview.label}
-							>
-								<div className="flex items-center justify-between border-border border-b px-5 py-4 sm:px-6">
-									<div className="flex items-center gap-3">
-										<span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-											<UsersRound aria-hidden="true" className="size-4" />
-										</span>
-										<p className="font-heading font-semibold tracking-[-0.02em]">
-											{copy.preview.title}
-										</p>
-									</div>
-									<span className="inline-flex items-center gap-2 rounded-full bg-primary/9 px-3 py-1.5 font-semibold text-primary text-xs">
-										<span className="status-dot size-1.5" />
-										{copy.preview.live}
-									</span>
-								</div>
-
-								<div className="grid grid-cols-2 gap-px border-border border-b bg-border">
-									<div className="bg-card p-5 sm:p-6">
-										<p className="text-muted-foreground text-xs">
-											{copy.preview.clients}
-										</p>
-										<p className="mt-2 font-heading font-semibold text-3xl tracking-[-0.05em]">
-											148
-										</p>
-									</div>
-									<div className="bg-card p-5 sm:p-6">
-										<p className="text-muted-foreground text-xs">
-											{copy.preview.bookings}
-										</p>
-										<p className="mt-2 font-heading font-semibold text-3xl tracking-[-0.05em]">
-											32
-										</p>
-									</div>
-								</div>
-
-								<div className="p-5 sm:p-6">
-									<p className="font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
-										{copy.preview.today}
-									</p>
-									<div className="mt-3 divide-y divide-border">
-										{copy.preview.entries.map((entry, index) => (
-											<div
-												key={entry.time}
-												className="grid grid-cols-[3.25rem_1fr_auto] items-center gap-3 py-3.5"
-											>
-												<span className="font-medium text-muted-foreground text-xs">
-													{entry.time}
-												</span>
-												<div className="min-w-0">
-													<p className="truncate font-semibold text-sm">
-														{entry.name}
-													</p>
-													<p className="mt-0.5 text-muted-foreground text-xs">
-														{entry.service}
-													</p>
-												</div>
-												<span className="hidden rounded-full border border-primary/20 bg-primary/7 px-2.5 py-1 font-medium text-primary text-[0.65rem] xs:block">
-													{index === 2
-														? copy.preview.newClient
-														: copy.preview.confirmed}
-												</span>
-											</div>
-										))}
-									</div>
-								</div>
-
-								<div className="flex flex-wrap items-center gap-2 border-border border-t bg-muted/55 px-5 py-4 text-muted-foreground text-xs sm:px-6">
-									<ShieldCheck
-										aria-hidden="true"
-										className="size-4 text-primary"
-									/>
-									<span>{copy.preview.footer}</span>
-									<span className="font-semibold text-foreground">
-										API · MCP · Agents
-									</span>
-								</div>
-							</section>
-						</div>
-					</div>
-				</section>
-
-				<section id="promise" className="section-space">
-					<div className="page-shell">
-						
-
-						<div className="mt-14 grid overflow-hidden rounded-[1.5rem] border bg-card md:grid-cols-3">
-							{copy.promise.items.map((item, index) => {
-								const Icon = promiseIcons[index];
-
-								return (
-									<article
-										key={item.title}
-										className={`p-7 sm:p-8 ${index > 0 ? "border-border border-t md:border-t-0 md:border-l" : ""}`}
-									>
-										<span className="flex size-10 items-center justify-center rounded-xl bg-primary/9 text-primary">
-											{Icon ? (
-												<Icon aria-hidden="true" className="size-5" />
-											) : null}
-										</span>
-										<h3 className="mt-10 font-heading font-semibold text-2xl tracking-[-0.035em]">
-											{item.title}
-										</h3>
-										<p className="mt-3 max-w-sm text-muted-foreground leading-relaxed">
-											{item.copy}
-										</p>
-									</article>
-								);
-							})}
-						</div>
-
-						<div id="open" className="open-panel mt-6">
-							<div className="grid items-center gap-10 lg:grid-cols-[1fr_0.9fr]">
-								<div>
-									<p className="eyebrow text-primary">{copy.open.eyebrow}</p>
-									<h2 className="mt-5 max-w-2xl text-balance font-heading font-semibold text-4xl leading-[1] tracking-[-0.05em] sm:text-6xl">
-										{copy.open.title}
-									</h2>
-									<p className="mt-5 max-w-xl text-foreground/65 leading-relaxed sm:text-lg">
-										{copy.open.description}
-									</p>
-								</div>
-
-								<div className="rounded-[1.25rem] border border-foreground/10 bg-background/55 p-4 sm:p-5">
-									<div className="flex items-center gap-2 border-foreground/10 border-b pb-4 font-semibold text-sm">
-										<Braces
-											aria-hidden="true"
-											className="size-4 text-primary"
-										/>
-										Geregeld.connect()
-									</div>
-									<div className="mt-4 flex flex-wrap gap-2">
-										{copy.open.connectors.map((connector) => (
-											<span
-												key={connector}
-												className="rounded-full border border-foreground/10 bg-background px-3 py-2 font-semibold text-xs"
-											>
-												{connector}
-											</span>
-										))}
-									</div>
-									<p className="mt-5 flex items-center gap-2 text-foreground/60 text-xs">
-										<ShieldCheck
-											aria-hidden="true"
-											className="size-4 text-primary"
-										/>
-										{copy.open.note}
-									</p>
-								</div>
-							</div>
-						</div>
-
-						
-					</div>
-				</section>
-			</main>
-
-			<footer>
-				<div className="page-shell flex flex-col gap-4 py-7 text-muted-foreground text-sm sm:flex-row sm:items-center sm:justify-between">
-					<div className="flex items-center gap-2.5 text-foreground">
-						<span
-							className="brand-mark size-7 rounded-lg text-xs"
-							aria-hidden="true"
-						>
-							G
-						</span>
-						<span className="font-heading font-semibold">Geregeld</span>
-					</div>
-					<p>© 2026 No Nonsense Group</p>
-				</div>
-			</footer>
-		</div>
-	);
+      <footer>
+        <div className="mx-auto flex w-full max-w-[86rem] flex-col gap-4 px-5 py-7 text-muted-foreground text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+          <span className="font-heading font-semibold text-foreground">
+            Geregeld
+          </span>
+          <p>© 2026 No Nonsense Group</p>
+        </div>
+      </footer>
+    </div>
+  );
 }

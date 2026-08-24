@@ -28,7 +28,7 @@ business behavior. Adapters handle technology.
 
 | Context | Owns |
 | --- | --- |
-| Identity | Business-user identity, authentication, and sessions |
+| Identity | User identity, registration, authentication, and sessions |
 | Organizations | Tenants, membership, invitations, roles, configuration, and organization-selected booking rules |
 | Scheduling | Services, availability rules, exceptions, and derived candidate slots |
 | Bookings | The appointment entity, its state and history, management links, and booking lifecycle workflows |
@@ -83,7 +83,9 @@ it. Do not create empty layers or generic repositories for symmetry.
 
 ## Interface rules
 
-Interfaces are designed from use cases, beginning with booking creation.
+Interfaces are designed from use cases. Implementation begins with registration
+and organization setup, following the journey of a new owner, before proceeding
+to booking creation.
 
 Each slice should define only what it needs:
 
@@ -134,7 +136,7 @@ Tests follow architectural boundaries:
    translation, serialization, and CSRF behavior.
 6. **Browser component:** behavior, keyboard use, focus, loading, empty, and
    error states in a real browser.
-7. **End to end:** a small set of critical client and admin journeys.
+7. **End to end:** a small set of critical client and owner journeys.
 
 Accessibility combines semantic assertions, keyboard and focus tests, automated
 axe checks, and manual screen-reader and zoom/reflow checks. Automated scans are
@@ -152,6 +154,14 @@ cannot exceed capacity.
 - Browser and end-to-end test configuration
 - Import-boundary enforcement
 - Production observability
+
+Authentication is implemented with the MIT-licensed Better Auth library behind
+Identity-owned application contracts. Better Auth handles one-time codes,
+authentication persistence, and sessions in Geregeld's PostgreSQL database;
+provider SDK types and behavior do not enter the domain model. Its User row is
+mapped to the domain User rather than duplicated in a separate identity table.
+One-time codes are stored hashed, never in plaintext. Email delivery remains a
+separate port.
 
 Dependencies remain exactly pinned while TanStack Start is a release candidate.
 Upgrades are explicit maintenance work and must exercise routes, server

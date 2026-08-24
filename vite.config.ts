@@ -8,14 +8,14 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 const config = defineConfig({
-	resolve: { tsconfigPaths: true },
-	plugins: [
-		devtools(),
-		tanstackStart(),
-		nitro({ rollupConfig: { external: [/^@sentry\//] } }),
-		tailwindcss(),
-		viteReact(),
-	],
+  resolve: { tsconfigPaths: true },
+  plugins: [
+    devtools(),
+    tanstackStart(),
+    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    tailwindcss(),
+    viteReact(),
+  ],
 });
 
 export default config;
