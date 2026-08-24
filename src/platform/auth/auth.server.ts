@@ -1,5 +1,6 @@
 import "@tanstack/react-start/server-only";
 
+import { dash } from "@better-auth/infra";
 import { betterAuth } from "better-auth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 
@@ -48,6 +49,9 @@ export const auth = betterAuth({
     modelName: "identity_verification",
   },
   plugins: [
+    dash({
+      apiKey: process.env.BETTER_AUTH_API_KEY,
+    }),
     registrationPlugin({
       secret,
       sendCode: async ({ email, code }) => {
