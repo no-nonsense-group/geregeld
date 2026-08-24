@@ -28,12 +28,6 @@ const localeScript = `try {
 	}
 } catch {}`;
 
-const themeScript = `try {
-	const saved = localStorage.getItem("geregeld-theme");
-	const dark = saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches);
-	document.documentElement.classList.toggle("dark", dark);
-} catch {}`;
-
 export const Route = createRootRouteWithContext<RouterContext>()({
 	validateSearch: (search: Record<string, unknown>) => ({
 		lang: resolveUiLocale(search.lang),
@@ -77,6 +71,18 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 					name: "twitter:card",
 					content: "summary_large_image",
 				},
+				{
+					name: "twitter:title",
+					content: copy.meta.title,
+				},
+				{
+					name: "twitter:description",
+					content: copy.meta.socialDescription,
+				},
+				{
+					name: "twitter:image",
+					content: "/og.png",
+				},
 			],
 			links: [
 				{
@@ -96,7 +102,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		<html lang={lang} suppressHydrationWarning>
 			<head>
 				<script>{localeScript}</script>
-				<script>{themeScript}</script>
 				<HeadContent />
 			</head>
 			<body>

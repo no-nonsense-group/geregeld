@@ -3,196 +3,135 @@ import type { UiLocale } from "#/shared/i18n";
 export const landingCopy = {
 	nl: {
 		meta: {
-			title: "Geregeld — Afspraken plannen zonder gedoe",
+			title: "Geregeld — Bookings zonder ballast",
 			description:
-				"Eenvoudige, betaalbare afspraaksoftware voor zzp'ers en kleine en middelgrote bedrijven. Zonder onnodige functies.",
+				"Alleen wat je nodig hebt voor bookings en klantoverzicht. Betaal per gebruik en blijf vrij met API, MCP en veilige toegang voor je eigen agents.",
 			socialDescription:
-				"Beheer diensten, beschikbaarheid en klantafspraken op één plek. Klanten boeken zelf.",
+				"Je bookings, je klanten, je flow. Geen ballast. Betaal alleen voor wat je gebruikt.",
 		},
 		controls: {
 			skip: "Naar de inhoud",
 			home: "Geregeld home",
-			navigation: "Hoofdnavigatie",
 			language: "Taal kiezen",
-			theme: "Wissel tussen licht en donker thema",
 		},
 		navigation: {
-			features: "Mogelijkheden",
-			how: "Zo werkt het",
-			pricing: "Prijzen",
-			soon: "Binnenkort beschikbaar",
+			principles: "Hoe het werkt",
+			cta: "Blijf op de hoogte",
 		},
 		hero: {
-			eyebrow: "Eenvoudige afspraaksoftware voor kleine bedrijven",
-			title: "Afspraken plannen.",
-			accent: "Gewoon geregeld.",
+			title: "Bookings. Gewoon geregeld.",
 			description:
-				"Geregeld is eenvoudige, betaalbare afspraaksoftware voor zzp'ers en kleine en middelgrote bedrijven. Beheer diensten, beschikbaarheid en klantafspraken op één plek. Klanten boeken zelf. Geen onnodige functies.",
-			primary: "Bekijk wat je krijgt",
-			secondary: "Prijzen volgen",
-		},
-		preview: {
-			today: "Vandaag",
-			date: "Dinsdag 28 juli",
-			count: "3 afspraken",
-			serviceOne: "Knippen",
-			serviceTwo: "Intake",
-			confirmed: "Bevestigd",
-			available: "Beschikbaar",
-			newBooking: "Nieuwe afspraak",
-			automatic: "Vanzelf in je agenda.",
-		},
-		audience: ["Voor zzp'ers", "salons", "praktijken", "kleine teams"],
-		features: {
-			eyebrow: "Wat je nodig hebt",
-			title: "Alles om afspraken te beheren. Meer niet.",
-			description:
-				"Beheer diensten, beschikbaarheid, klantafspraken en wijzigingen in één helder systeem.",
-			items: [
-				{
-					title: "Diensten en beschikbaarheid",
-					copy: "Bepaal wat klanten kunnen boeken, wanneer je beschikbaar bent en welke voorwaarden gelden.",
-				},
-				{
-					title: "Klanten boeken zelf",
-					copy: "Deel je boekingspagina. Klanten kiezen zelf een vrij moment en kunnen hun afspraak beheren.",
-				},
-				{
-					title: "Eén duidelijk overzicht",
-					copy: "Bekijk je afspraken en wijzigingen op één plek, zonder extra administratie.",
-				},
-			],
-		},
-		how: {
-			eyebrow: "Zo werkt het",
-			title: "Van beschikbaarheid naar boeking in drie stappen.",
-			steps: [
-				{
-					title: "Stel je diensten en tijden in",
-					copy: "Voeg toe wat klanten kunnen boeken en wanneer je beschikbaar bent.",
-				},
-				{
-					title: "Deel je boekingslink",
-					copy: "Plaats hem op je website, socials of waar je klanten al zijn.",
-				},
-				{
-					title: "Beheer afspraken op één plek",
-					copy: "Klanten boeken zelf. Jij houdt overzicht en bepaalt de regels.",
-				},
-			],
-		},
-		pricing: {
-			eyebrow: "Eenvoudige prijzen",
-			title: "Betaalbaar voor kleine bedrijven.",
-			accent: "Prijs volgt.",
-			description:
-				"We houden het aanbod net zo eenvoudig als het product. Geen onnodig ingewikkelde pakketten; de definitieve prijs volgt.",
-			cta: "Houd me op de hoogte",
-			subject: "Ik wil op de hoogte blijven van Geregeld",
-		},
-		closing: {
-			eyebrow: "Eenvoudig afspraken beheren",
-			title: "Minder plannen. Meer tijd voor je klanten.",
-			cta: "Ik heb interesse",
+				"Deel je beschikbaarheid, ontvang bookings en houd altijd overzicht over je klanten. Geen nieuwe werkwijze. Geen functiecircus.",
+			primary: "Ik heb interesse",
 			subject: "Interesse in Geregeld",
 		},
-		footer: "Eenvoudige afspraaksoftware voor kleine bedrijven.",
+		preview: {
+			label: "Voorbeeld van je bookingsoverzicht",
+			title: "Je overzicht",
+			live: "Live",
+			clients: "Klanten",
+			bookings: "Bookings deze maand",
+			today: "Vandaag",
+			confirmed: "Bevestigd",
+			newClient: "Nieuwe klant",
+			footer: "Veilig toegankelijk via",
+			entries: [
+				{ time: "09:30", name: "Sophie van Dijk", service: "Knippen" },
+				{ time: "11:00", name: "Mees de Boer", service: "Intake" },
+				{ time: "14:30", name: "Nora Bakker", service: "Consult" },
+			],
+		},
+		promise: {
+			items: [
+				{
+					title: "Geen bloat",
+					copy: "Beschikbaarheid, bookings en klanten. Elke functie verdient zijn plek.",
+				},
+				{
+					title: "Betaal per gebruik",
+					copy: "Geen groot pakket of vaste ballast. Je betaalt mee met wat je gebruikt.",
+				},
+				{
+					title: "Altijd klantoverzicht",
+					copy: "Elke booking bouwt aan één rustig en betrouwbaar overzicht van je klanten.",
+				},
+			],
+		},
+		open: {
+			eyebrow: "Open by design",
+			title: "Je data blijft in je eigen flow.",
+			description:
+				"Gebruik Geregeld direct, via de API, met MCP of vanuit je persoonlijke agents. Veilig, controleerbaar en zonder dat je nóg een tool hoeft te adopteren.",
+			connectors: ["Open API", "MCP", "Persoonlijke agents"],
+			note: "Jij bepaalt wie erbij kan en waarvoor.",
+		},
+
 	},
 	en: {
 		meta: {
-			title: "Geregeld — Scheduling without the hassle",
+			title: "Geregeld — Booking without the bloat",
 			description:
-				"Simple, affordable appointment software for independent professionals and small and medium-sized businesses.",
+				"Only what you need for bookings and client oversight. Pay as you go and stay open with API, MCP, and secure access for your own agents.",
 			socialDescription:
-				"Manage services, availability, and client appointments in one place. Clients book themselves.",
+				"Your bookings, your clients, your flow. No bloat. Pay only for what you use.",
 		},
 		controls: {
 			skip: "Skip to content",
 			home: "Geregeld home",
-			navigation: "Main navigation",
 			language: "Choose language",
-			theme: "Switch between light and dark theme",
 		},
 		navigation: {
-			features: "Features",
-			how: "How it works",
-			pricing: "Pricing",
-			soon: "Coming soon",
+			principles: "How it works",
+			cta: "Keep me posted",
 		},
 		hero: {
-			eyebrow: "Simple appointment software for small businesses",
-			title: "Schedule appointments.",
-			accent: "Consider it handled.",
+			title: "Booking. Simply handled.",
 			description:
-				"Geregeld is simple, affordable appointment software for independent professionals and small and medium-sized businesses. Manage services, availability, and client appointments in one place. Clients book themselves. No unnecessary features.",
-			primary: "See what you get",
-			secondary: "Pricing coming soon",
-		},
-		preview: {
-			today: "Today",
-			date: "Tuesday 28 July",
-			count: "3 appointments",
-			serviceOne: "Haircut",
-			serviceTwo: "Consultation",
-			confirmed: "Confirmed",
-			available: "Available",
-			newBooking: "New appointment",
-			automatic: "Straight into your calendar.",
-		},
-		audience: ["For independents", "salons", "practices", "small teams"],
-		features: {
-			eyebrow: "What you need",
-			title: "Everything you need to manage appointments. Nothing more.",
-			description:
-				"Manage services, availability, client appointments, and changes in one clear system.",
-			items: [
-				{
-					title: "Services and availability",
-					copy: "Decide what clients can book, when you are available, and which conditions apply.",
-				},
-				{
-					title: "Clients book themselves",
-					copy: "Share your booking page. Clients choose a free time and manage their own appointment.",
-				},
-				{
-					title: "One clear overview",
-					copy: "See appointments and changes in one place, without extra administration.",
-				},
-			],
-		},
-		how: {
-			eyebrow: "How it works",
-			title: "From availability to booking in three steps.",
-			steps: [
-				{
-					title: "Set your services and times",
-					copy: "Add what clients can book and when you are available.",
-				},
-				{
-					title: "Share your booking link",
-					copy: "Put it on your website, socials, or wherever clients find you.",
-				},
-				{
-					title: "Manage appointments in one place",
-					copy: "Clients book themselves. You keep oversight and set the rules.",
-				},
-			],
-		},
-		pricing: {
-			eyebrow: "Simple pricing",
-			title: "Affordable for small businesses.",
-			accent: "Pricing to follow.",
-			description:
-				"We are keeping the offer as simple as the product. No needlessly complicated plans; final pricing will follow.",
-			cta: "Keep me posted",
-			subject: "Keep me posted about Geregeld",
-		},
-		closing: {
-			eyebrow: "Simple appointment management",
-			title: "Less scheduling. More time for your clients.",
-			cta: "I’m interested",
+				"Share your availability, receive bookings, and always keep a clear view of your clients. No new workflow. No feature circus.",
+			primary: "I’m interested",
 			subject: "Interested in Geregeld",
 		},
-		footer: "Simple appointment software for small businesses.",
+		preview: {
+			label: "Example of your booking overview",
+			title: "Your overview",
+			live: "Live",
+			clients: "Clients",
+			bookings: "Bookings this month",
+			today: "Today",
+			confirmed: "Confirmed",
+			newClient: "New client",
+			footer: "Securely accessible through",
+			entries: [
+				{ time: "09:30", name: "Sophie van Dijk", service: "Haircut" },
+				{ time: "11:00", name: "Mees de Boer", service: "Intake" },
+				{ time: "14:30", name: "Nora Bakker", service: "Consult" },
+			],
+		},
+		promise: {
+
+			items: [
+				{
+					title: "No bloat",
+					copy: "Availability, bookings, and clients. Every feature has to earn its place.",
+				},
+				{
+					title: "Pay as you go",
+					copy: "No oversized plan or fixed overhead. Your cost follows your actual use.",
+				},
+				{
+					title: "Always know your clients",
+					copy: "Every booking builds one calm, reliable overview of your clients.",
+				},
+			],
+		},
+		open: {
+			eyebrow: "Open by design",
+			title: "Your data stays in your flow.",
+			description:
+				"Use Geregeld directly, through the API, with MCP, or from your personal agents. Secure, controllable, and without adopting yet another tool.",
+			connectors: ["Open API", "MCP", "Personal agents"],
+			note: "You decide who gets access and what they can do.",
+		},
+
 	},
 } as const satisfies Record<UiLocale, unknown>;
