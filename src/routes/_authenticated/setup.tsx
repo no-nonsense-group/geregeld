@@ -4,10 +4,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
-import {
-  getOrganizationContextFn,
-  setupOrganizationFn,
-} from "#/contexts/organizations/slices/setup-organization/functions";
+import { setupOrganizationFn } from "#/contexts/organizations/slices/setup-organization/functions";
 
 const fallbackTimeZones = ["Europe/Amsterdam", "Europe/London", "UTC"];
 const timeZones =
@@ -15,17 +12,15 @@ const timeZones =
     ? Intl.supportedValuesOf("timeZone")
     : fallbackTimeZones;
 
-export const Route = createFileRoute("/setup")({
+export const Route = createFileRoute("/_authenticated/setup")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
-  loader: async ({ deps }) => {
-    const state = await getOrganizationContextFn();
-
-    if (state.status === "unauthenticated") {
-      throw redirect({ to: "/login", search: { lang: deps.lang } });
-    }
-
+  loader: async ({ context, deps }) => {
+    const state = context.organizationContext;
     if (state.status === "ready") {
-      throw redirect({ to: "/dashboard", search: { lang: deps.lang } });
+      throw redirect({
+        to: "/dashboard",
+        search: { lang: deps.lang },
+      });
     }
 
     return { unavailable: state.status === "unavailable" };

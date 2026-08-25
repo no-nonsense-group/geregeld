@@ -3,21 +3,38 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
+import { AppControls } from "#/components/app-controls";
 import { landingCopy } from "#/content/landing";
 import type { RouterContext } from "#/router";
-import { resolveUiLocale } from "#/shared/i18n";
+import { resolveUiLocale, uiLocaleStorageKey } from "#/shared/i18n";
 import appCss from "../styles.css?url";
 
 const localeScript = `try {
 	const url = new URL(location.href);
 	const requested = url.searchParams.get("lang");
+	const isSupported = (value) => value === "nl" || value === "en";
+	let stored;
 
-	if (requested !== "nl" && requested !== "en") {
-		const browserLanguage = (navigator.languages?.[0] ?? navigator.language).toLowerCase().split("-")[0];
-		const locale = requested === null && browserLanguage === "en" ? "en" : "nl";
+	try {
+		stored = localStorage.getItem(${JSON.stringify(uiLocaleStorageKey)});
+	} catch {}
+
+	const browserLanguage = (navigator.languages?.[0] ?? navigator.language).toLowerCase().split("-")[0];
+	const locale = isSupported(requested)
+		? requested
+		: isSupported(stored)
+			? stored
+			: browserLanguage === "en" ? "en" : "nl";
+
+	try {
+		localStorage.setItem(${JSON.stringify(uiLocaleStorageKey)}, locale);
+	} catch {}
+
+	if (!isSupported(requested)) {
 		url.searchParams.set("lang", locale);
 
 		if (locale === "en") {
@@ -97,6 +114,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const { lang } = Route.useSearch();
+  const authenticated = useRouterState({
+    select: (state) =>
+      state.matches.some((match) => match.routeId === "/_authenticated"),
+  });
 
   return (
     <html
@@ -109,6 +130,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-w-80 bg-background text-foreground [text-rendering:optimizeLegibility]">
+        <AppControls authenticated={authenticated} locale={lang} />
         {children}
         <TanStackDevtools
           config={{

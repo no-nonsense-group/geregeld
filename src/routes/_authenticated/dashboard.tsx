@@ -2,16 +2,11 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { CalendarDays, Clock3 } from "lucide-react";
 
 import { organizationCopy } from "#/content/organization";
-import { getOrganizationContextFn } from "#/contexts/organizations/slices/setup-organization/functions";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
-  loader: async ({ deps }) => {
-    const state = await getOrganizationContextFn();
-
-    if (state.status === "unauthenticated") {
-      throw redirect({ to: "/login", search: { lang: deps.lang } });
-    }
+  loader: async ({ context, deps }) => {
+    const state = context.organizationContext;
 
     if (state.status === "setup-required") {
       throw redirect({ to: "/setup", search: { lang: deps.lang } });
@@ -52,7 +47,7 @@ function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-card/80 px-5 py-5 backdrop-blur sm:px-8">
+      <header className="border-border border-b bg-card/80 py-5 pr-52 pl-5 backdrop-blur sm:pl-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <a
             href={`/?lang=${lang}`}
@@ -60,7 +55,7 @@ function DashboardPage() {
           >
             Geregeld
           </a>
-          <span className="max-w-64 truncate rounded-full bg-muted px-4 py-2 font-semibold text-sm">
+          <span className="hidden max-w-64 truncate rounded-full bg-muted px-4 py-2 font-semibold text-sm sm:inline">
             {organization.name}
           </span>
         </div>

@@ -52,4 +52,15 @@ export const PostgresCurrentUserLive = Layer.succeed(CurrentUserGateway, {
           ? error
           : new AuthenticationUnavailable(),
     }),
+  endSession: (token) =>
+    Effect.tryPromise({
+      try: async () => {
+        await database
+          .delete(identity_session)
+          .where(
+            eq(identity_session.tokenHash, identitySessionTokenHash(token)),
+          );
+      },
+      catch: () => new AuthenticationUnavailable(),
+    }),
 });

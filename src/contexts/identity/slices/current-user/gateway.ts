@@ -7,6 +7,9 @@ export interface CurrentUserGatewayService {
   readonly findBySessionToken: (
     token: string,
   ) => Effect.Effect<User, Unauthenticated | AuthenticationUnavailable>;
+  readonly endSession: (
+    token: string,
+  ) => Effect.Effect<void, AuthenticationUnavailable>;
 }
 
 export class CurrentUserGateway extends Context.Tag(

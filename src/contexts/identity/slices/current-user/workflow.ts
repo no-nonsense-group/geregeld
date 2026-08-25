@@ -13,3 +13,14 @@ export function resolveCurrentUser(sessionToken: string | undefined) {
     return yield* gateway.findBySessionToken(sessionToken);
   }).pipe(Effect.withSpan("identity.resolveCurrentUser"));
 }
+
+export function endCurrentSession(sessionToken: string | undefined) {
+  if (!sessionToken) {
+    return Effect.void;
+  }
+
+  return CurrentUserGateway.pipe(
+    Effect.flatMap((gateway) => gateway.endSession(sessionToken)),
+    Effect.withSpan("identity.endCurrentSession"),
+  );
+}

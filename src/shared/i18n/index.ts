@@ -4,14 +4,36 @@ export type UiLocale = (typeof uiLocales)[number];
 
 export const defaultUiLocale: UiLocale = "nl";
 
+export const uiLocaleStorageKey = "geregeld.ui-locale";
+
+export function isUiLocale(value: unknown): value is UiLocale {
+  return uiLocales.some((locale) => locale === value);
+}
+
 export function resolveUiLocale(value: unknown): UiLocale {
-  return uiLocales.find((locale) => locale === value) ?? defaultUiLocale;
+  return isUiLocale(value) ? value : defaultUiLocale;
 }
 
 export function resolveBrowserUiLocale(value: string | undefined): UiLocale {
   const language = value?.toLowerCase().split("-")[0];
 
   return language === "en" ? "en" : defaultUiLocale;
+}
+
+export function resolvePreferredUiLocale(
+  requested: unknown,
+  stored: unknown,
+  browserLanguage: string | undefined,
+): UiLocale {
+  if (isUiLocale(requested)) {
+    return requested;
+  }
+
+  if (isUiLocale(stored)) {
+    return stored;
+  }
+
+  return resolveBrowserUiLocale(browserLanguage);
 }
 
 export const organizationTermKeys = [

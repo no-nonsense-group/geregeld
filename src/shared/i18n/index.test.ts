@@ -4,6 +4,7 @@ import {
   type OrganizationTerminology,
   resolveBrowserUiLocale,
   resolveOrganizationTerm,
+  resolvePreferredUiLocale,
   resolveUiLocale,
 } from "./index";
 
@@ -21,6 +22,20 @@ describe("browser locale resolution", () => {
     expect(resolveBrowserUiLocale("nl-NL")).toBe("nl");
     expect(resolveBrowserUiLocale("de-DE")).toBe("nl");
     expect(resolveBrowserUiLocale(undefined)).toBe("nl");
+  });
+});
+
+describe("preferred locale resolution", () => {
+  it("prefers an explicit URL locale over stored and browser values", () => {
+    expect(resolvePreferredUiLocale("nl", "en", "en-US")).toBe("nl");
+  });
+
+  it("uses the stored preference when the URL has no locale", () => {
+    expect(resolvePreferredUiLocale(undefined, "en", "nl-NL")).toBe("en");
+  });
+
+  it("falls back to the browser when no preference is stored", () => {
+    expect(resolvePreferredUiLocale(undefined, undefined, "en-GB")).toBe("en");
   });
 });
 

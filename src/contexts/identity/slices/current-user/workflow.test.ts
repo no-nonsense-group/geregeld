@@ -4,7 +4,7 @@ import { Effect, Layer, Schema } from "effect";
 import { EmailAddress, UserId } from "../register/contract";
 import { Unauthenticated } from "./contract";
 import { CurrentUserGateway, type CurrentUserGatewayService } from "./gateway";
-import { resolveCurrentUser } from "./workflow";
+import { endCurrentSession, resolveCurrentUser } from "./workflow";
 
 const user = {
   id: UserId.make("user-1"),
@@ -13,6 +13,7 @@ const user = {
 
 const gateway: CurrentUserGatewayService = {
   findBySessionToken: () => Effect.succeed(user),
+  endSession: () => Effect.void,
 };
 
 const layer = Layer.succeed(CurrentUserGateway, gateway);
@@ -29,4 +30,26 @@ it.effect("resolves the User represented by the session token", () =>
     const result = yield* resolveCurrentUser("session-token");
     expect(result).toEqual(user);
   }).pipe(Effect.provide(layer)),
+);
+
+it.effect("ends an existing session", () =>
+  Effect.gen(function* () {
+    let endedToken: string | undefined;
+    const recordingLayer = Layer.succeed(CurrentUserGateway, {
+      ...gateway,
+      endSession: (token: string) => {
+        endedToken = token;
+        return Effect.void;
+      },
+    });
+
+    yield* endCurrentSession("session-token").pipe(
+      Effect.provide(recordingLayer),
+    );
+    expect(endedToken).toBe("session-token");
+  }),
+);
+
+it.effect("does nothing when there is no session to end", () =>
+  endCurrentSession(undefined).pipe(Effect.provide(layer)),
 );

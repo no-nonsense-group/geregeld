@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 
 import { landingCopy } from "#/content/landing";
-import { uiLocales } from "#/shared/i18n";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -23,7 +22,7 @@ function Home() {
       </a>
 
       <header className="relative z-20 border-border border-b bg-background/92 backdrop-blur-xl">
-        <div className="mx-auto flex h-[4.5rem] w-full max-w-[86rem] items-center gap-4 px-5 sm:px-8 lg:px-12">
+        <div className="mx-auto flex h-[4.5rem] w-full max-w-[86rem] items-center gap-4 pr-28 pl-5 sm:pr-32 sm:pl-8 lg:pl-12">
           <a
             href={`/?lang=${lang}`}
             className="shrink-0 font-heading font-semibold text-xl tracking-[-0.04em]"
@@ -57,19 +56,6 @@ function Home() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3 lg:ml-0">
-            <fieldset className="flex items-center gap-2 pr-1 text-xs sm:gap-3 sm:text-sm">
-              <legend className="sr-only">{copy.controls.language}</legend>
-              {uiLocales.map((locale) => (
-                <a
-                  key={locale}
-                  href={`/?lang=${locale}`}
-                  aria-current={lang === locale ? "page" : undefined}
-                  className="uppercase text-muted-foreground transition-colors hover:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground"
-                >
-                  {locale}
-                </a>
-              ))}
-            </fieldset>
             <a
               className="hidden min-h-10 items-center justify-center rounded-full px-3 font-semibold text-sm transition-colors hover:bg-muted sm:inline-flex"
               href={`/login?lang=${lang}`}
