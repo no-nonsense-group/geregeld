@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 
-import { and, asc, between, count, eq, gt, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, between, count, eq, gt, lt, ne, or } from "drizzle-orm";
 import { Effect, Layer } from "effect";
 
 import {
@@ -11,6 +11,7 @@ import {
 import { AvailabilityGateway } from "#/contexts/availability/slices/manage-availability/gateway";
 import { database } from "#/platform/database/drizzle.server";
 import { availability_period, organization } from "#/platform/database/schema";
+import { acquireOrganizationLock } from "#/platform/database/write-lock.server";
 
 function mapCreateError(error: unknown) {
   return error instanceof AvailabilityConflict
@@ -124,8 +125,9 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
-            await transaction.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
+            await acquireOrganizationLock(
+              transaction,
+              input.organizationId,
             );
             await transaction
               .delete(availability_period)
@@ -157,8 +159,9 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
-            await transaction.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
+            await acquireOrganizationLock(
+              transaction,
+              input.organizationId,
             );
             const overlaps = await transaction
               .select({ id: availability_period.id })
@@ -206,8 +209,9 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
-            await transaction.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
+            await acquireOrganizationLock(
+              transaction,
+              input.organizationId,
             );
             const overlaps = await transaction
               .select({ id: availability_period.id })

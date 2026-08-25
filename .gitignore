@@ -13,3 +13,9 @@ __unconfig*
 todos.json
 .vercel
 .env*
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3

@@ -32,6 +32,7 @@ import {
   identity_session,
   identity_user,
 } from "#/platform/database/schema";
+import { withRowLock } from "#/platform/database/write-lock.server";
 import { sendRegistrationEmail } from "#/platform/email/resend-registration-email.server";
 
 const registrationCodeLifetimeMs = 5 * 60 * 1000;
@@ -177,12 +178,12 @@ export const PostgresRegistrationLive = Layer.succeed(RegistrationGateway, {
     Effect.tryPromise({
       try: async () => {
         const result = await database.transaction(async (transaction) => {
-          const [challenge] = await transaction
-            .select()
-            .from(identity_registration_challenge)
-            .where(eq(identity_registration_challenge.email, email))
-            .for("update")
-            .limit(1);
+          const [challenge] = await withRowLock(
+            transaction
+              .select()
+              .from(identity_registration_challenge)
+              .where(eq(identity_registration_challenge.email, email)),
+          ).limit(1);
 
           if (!challenge) {
             return { kind: "invalid-code" as const };
