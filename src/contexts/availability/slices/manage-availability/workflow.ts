@@ -5,10 +5,9 @@ import type {
   OrganizationId,
 } from "#/contexts/organizations/slices/setup-organization/contract";
 import {
-  AvailabilityBulkLimitExceeded,
-  type DatedAvailabilityPeriod,
   InvalidAvailabilityInput,
-  type WeeklyRange,
+  type TimeWindow,
+  type WeeklyBookingHoursWindow,
 } from "./contract";
 import { AvailabilityGateway } from "./gateway";
 import {
@@ -21,7 +20,8 @@ import {
 } from "./local-date";
 
 const latestDate = "2099-12-31";
-const maximumBulkPeriods = 1000;
+const maximumWeeklyWindows = 50;
+const maximumExceptionWindows = 20;
 
 function isIntegerBetween(
   value: unknown,
@@ -36,53 +36,13 @@ function isIntegerBetween(
   );
 }
 
-function isPeriodInput(value: unknown): value is DatedAvailabilityPeriod {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const input = value as Record<string, unknown>;
-  if (
-    isLocalDate(input.date) &&
-    isIntegerBetween(input.startMinute, 0, 1439) &&
-    isIntegerBetween(input.endMinute, 1, 1440) &&
-    input.startMinute < input.endMinute
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function validateFuturePeriod(
-  value: unknown,
-  timeZone: IanaTimeZone,
-  now: Date,
-): DatedAvailabilityPeriod {
-  if (!isPeriodInput(value)) {
-    throw new InvalidAvailabilityInput();
-  }
-
-  const current = localNow(timeZone, now);
-  if (
-    value.date > latestDate ||
-    value.date < current.date ||
-    (value.date === current.date && value.startMinute <= current.minute)
-  ) {
-    throw new InvalidAvailabilityInput();
-  }
-
-  return value;
-}
-
-function decodeRange(value: unknown): WeeklyRange | undefined {
+function decodeTimeWindow(value: unknown): TimeWindow | undefined {
   if (!value || typeof value !== "object") {
     return undefined;
   }
 
   const input = value as Record<string, unknown>;
   if (
-    !isIntegerBetween(input.dayOfWeek, 0, 6) ||
     !isIntegerBetween(input.startMinute, 0, 1439) ||
     !isIntegerBetween(input.endMinute, 1, 1440) ||
     input.startMinute >= input.endMinute
@@ -91,21 +51,60 @@ function decodeRange(value: unknown): WeeklyRange | undefined {
   }
 
   return {
-    dayOfWeek: input.dayOfWeek,
     startMinute: input.startMinute,
     endMinute: input.endMinute,
   };
 }
 
-function periodsOverlap(
-  left: DatedAvailabilityPeriod,
-  right: DatedAvailabilityPeriod,
-) {
-  return (
-    left.date === right.date &&
-    left.startMinute < right.endMinute &&
-    left.endMinute > right.startMinute
+function decodeWeeklyWindow(
+  value: unknown,
+): WeeklyBookingHoursWindow | undefined {
+  const window = decodeTimeWindow(value);
+  if (!window || !value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const dayOfWeek = (value as Record<string, unknown>).dayOfWeek;
+  if (!isIntegerBetween(dayOfWeek, 0, 6)) {
+    return undefined;
+  }
+
+  return { dayOfWeek, ...window };
+}
+
+function windowsOverlap(windows: ReadonlyArray<TimeWindow>): boolean {
+  const sorted = [...windows].sort(
+    (left, right) => left.startMinute - right.startMinute,
   );
+  return sorted.some(
+    (window, index) =>
+      index > 0 && sorted[index - 1].endMinute > window.startMinute,
+  );
+}
+
+function weeklyWindowsOverlap(
+  windows: ReadonlyArray<WeeklyBookingHoursWindow>,
+): boolean {
+  return Array.from({ length: 7 }, (_, dayOfWeek) =>
+    windows.filter((window) => window.dayOfWeek === dayOfWeek),
+  ).some(windowsOverlap);
+}
+
+function decodeWindowArray(
+  value: unknown,
+  maximum: number,
+): ReadonlyArray<TimeWindow> | undefined {
+  if (!Array.isArray(value) || value.length > maximum) {
+    return undefined;
+  }
+
+  const windows = value.map(decodeTimeWindow);
+  if (windows.some((window) => window === undefined)) {
+    return undefined;
+  }
+
+  const decoded = windows as ReadonlyArray<TimeWindow>;
+  return windowsOverlap(decoded) ? undefined : decoded;
 }
 
 export function getAvailabilityOverview(
@@ -139,38 +138,87 @@ export function getAvailabilityOverview(
     }
 
     const gateway = yield* AvailabilityGateway;
-    return yield* gateway.getOverview({
+    const configuration = yield* gateway.getConfiguration({
       organizationId,
-      today: current.date,
-      currentMinute: current.minute,
       from,
       to,
     });
+    const exceptionByDate = new Map(
+      configuration.dateExceptions.map((exception) => [
+        exception.date,
+        exception,
+      ]),
+    );
+    const days = Array.from(
+      {
+        length: localDateToEpochDay(to) - localDateToEpochDay(from) + 1,
+      },
+      (_, index) => {
+        const date = addLocalDays(from, index);
+        const exception = exceptionByDate.get(date);
+        if (exception) {
+          return {
+            date,
+            source: "exception" as const,
+            windows: exception.windows,
+          };
+        }
+
+        const dayOfWeek = localDateDayOfWeek(date);
+        return {
+          date,
+          source: "regular" as const,
+          windows: configuration.weeklyHours
+            .filter((window) => window.dayOfWeek === dayOfWeek)
+            .map(({ startMinute, endMinute }) => ({
+              startMinute,
+              endMinute,
+            })),
+        };
+      },
+    );
+
+    return {
+      configured: configuration.configured,
+      localToday: current.date,
+      rangeFrom: from,
+      rangeTo: to,
+      weeklyHours: configuration.weeklyHours,
+      dateExceptions: configuration.dateExceptions,
+      days,
+    };
   }).pipe(Effect.withSpan("availability.getOverview"));
 }
 
-export function updateDefaultAvailabilityDuration(
+export function replaceWeeklyBookingHours(
   organizationId: OrganizationId,
   input: unknown,
 ) {
   return Effect.gen(function* () {
+    if (!input || typeof input !== "object") {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    const value = (input as Record<string, unknown>).windows;
+    if (!Array.isArray(value) || value.length > maximumWeeklyWindows) {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    const windows = value.map(decodeWeeklyWindow);
+    const decoded = windows as ReadonlyArray<WeeklyBookingHoursWindow>;
     if (
-      !input ||
-      typeof input !== "object" ||
-      !isIntegerBetween((input as Record<string, unknown>).minutes, 1, 1440)
+      windows.some((window) => window === undefined) ||
+      weeklyWindowsOverlap(decoded)
     ) {
       return yield* new InvalidAvailabilityInput();
     }
 
     const gateway = yield* AvailabilityGateway;
-    yield* gateway.updateDefaultDuration({
-      organizationId,
-      minutes: (input as { minutes: number }).minutes,
-    });
-  }).pipe(Effect.withSpan("availability.updateDefaultDuration"));
+    yield* gateway.replaceWeeklyHours({ organizationId, windows: decoded });
+  }).pipe(Effect.withSpan("availability.replaceWeeklyHours"));
 }
 
-export function applyWeeklyAvailability(
+export function upsertBookingHoursDateException(
   organizationId: OrganizationId,
   timeZone: IanaTimeZone,
   input: unknown,
@@ -182,150 +230,30 @@ export function applyWeeklyAvailability(
     }
 
     const candidate = input as Record<string, unknown>;
-    const ranges = Array.isArray(candidate.ranges)
-      ? candidate.ranges.map(decodeRange)
-      : [];
-    if (
-      !isLocalDate(candidate.startDate) ||
-      !isLocalDate(candidate.endDate) ||
-      !isIntegerBetween(candidate.durationMinutes, 1, 1440) ||
-      ranges.length === 0 ||
-      ranges.some((range) => !range)
-    ) {
-      return yield* new InvalidAvailabilityInput();
-    }
-
-    const current = localNow(timeZone, now);
-    const startDay = localDateToEpochDay(candidate.startDate);
-    const endDay = localDateToEpochDay(candidate.endDate);
-    const today = localDateToEpochDay(current.date);
-    if (
-      startDay < today ||
-      endDay < startDay ||
-      endDay - startDay > 364 ||
-      candidate.endDate > latestDate
-    ) {
-      return yield* new InvalidAvailabilityInput();
-    }
-
-    const decodedRanges = ranges as Array<WeeklyRange>;
-    const periods: Array<DatedAvailabilityPeriod> = [];
-    for (let epochDay = startDay; epochDay <= endDay; epochDay += 1) {
-      const date = addLocalDays(candidate.startDate, epochDay - startDay);
-      const dayOfWeek = localDateDayOfWeek(date);
-      for (const range of decodedRanges) {
-        if (range.dayOfWeek !== dayOfWeek) {
-          continue;
-        }
-
-        for (
-          let startMinute = range.startMinute;
-          startMinute + candidate.durationMinutes <= range.endMinute;
-          startMinute += candidate.durationMinutes
-        ) {
-          if (date === current.date && startMinute <= current.minute) {
-            continue;
-          }
-
-          periods.push({
-            date,
-            startMinute,
-            endMinute: startMinute + candidate.durationMinutes,
-          });
-
-          if (periods.length > maximumBulkPeriods) {
-            return yield* new AvailabilityBulkLimitExceeded();
-          }
-        }
-      }
-    }
-
-    if (periods.length === 0) {
-      return yield* new InvalidAvailabilityInput();
-    }
-
-    const sorted = [...periods].sort(
-      (left, right) =>
-        left.date.localeCompare(right.date) ||
-        left.startMinute - right.startMinute,
+    const windows = decodeWindowArray(
+      candidate.windows,
+      maximumExceptionWindows,
     );
+    const today = localNow(timeZone, now).date;
     if (
-      sorted.some(
-        (period, index) =>
-          index > 0 && periodsOverlap(sorted[index - 1], period),
-      )
+      !isLocalDate(candidate.date) ||
+      candidate.date < today ||
+      candidate.date > latestDate ||
+      !windows
     ) {
       return yield* new InvalidAvailabilityInput();
     }
 
     const gateway = yield* AvailabilityGateway;
-    yield* gateway.replaceRange({
+    return yield* gateway.upsertDateException({
       organizationId,
-      from: candidate.startDate,
-      to: candidate.endDate,
-      periods,
+      date: candidate.date,
+      windows,
     });
-
-    return { created: periods.length };
-  }).pipe(Effect.withSpan("availability.applyWeekly"));
+  }).pipe(Effect.withSpan("availability.upsertDateException"));
 }
 
-export function createAvailabilityPeriod(
-  organizationId: OrganizationId,
-  timeZone: IanaTimeZone,
-  input: unknown,
-  now = new Date(),
-) {
-  return Effect.gen(function* () {
-    const period = yield* Effect.try({
-      try: () => validateFuturePeriod(input, timeZone, now),
-      catch: () => new InvalidAvailabilityInput(),
-    });
-    const gateway = yield* AvailabilityGateway;
-    return yield* gateway.createPeriod({ organizationId, period });
-  }).pipe(Effect.withSpan("availability.createPeriod"));
-}
-
-export function updateAvailabilityPeriod(
-  organizationId: OrganizationId,
-  timeZone: IanaTimeZone,
-  input: unknown,
-  now = new Date(),
-) {
-  return Effect.gen(function* () {
-    if (
-      !input ||
-      typeof input !== "object" ||
-      typeof (input as Record<string, unknown>).id !== "string" ||
-      (input as { id: string }).id.length === 0
-    ) {
-      return yield* new InvalidAvailabilityInput();
-    }
-
-    const candidate = input as Record<string, unknown>;
-    const period = yield* Effect.try({
-      try: () =>
-        validateFuturePeriod(
-          {
-            date: candidate.date,
-            startMinute: candidate.startMinute,
-            endMinute: candidate.endMinute,
-          },
-          timeZone,
-          now,
-        ),
-      catch: () => new InvalidAvailabilityInput(),
-    });
-    const gateway = yield* AvailabilityGateway;
-    return yield* gateway.updatePeriod({
-      organizationId,
-      id: candidate.id as string,
-      period,
-    });
-  }).pipe(Effect.withSpan("availability.updatePeriod"));
-}
-
-export function deleteAvailabilityPeriod(
+export function deleteBookingHoursDateException(
   organizationId: OrganizationId,
   input: unknown,
 ) {
@@ -333,16 +261,15 @@ export function deleteAvailabilityPeriod(
     if (
       !input ||
       typeof input !== "object" ||
-      typeof (input as Record<string, unknown>).id !== "string" ||
-      (input as { id: string }).id.length === 0
+      !isLocalDate((input as Record<string, unknown>).date)
     ) {
       return yield* new InvalidAvailabilityInput();
     }
 
     const gateway = yield* AvailabilityGateway;
-    yield* gateway.deletePeriod({
+    yield* gateway.deleteDateException({
       organizationId,
-      id: (input as { id: string }).id,
+      date: (input as { date: string }).date,
     });
-  }).pipe(Effect.withSpan("availability.deletePeriod"));
+  }).pipe(Effect.withSpan("availability.deleteDateException"));
 }

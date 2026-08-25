@@ -1,32 +1,41 @@
 import { Schema } from "effect";
 
-export interface AvailabilityPeriod {
-  readonly id: string;
-  readonly date: string;
+export interface TimeWindow {
   readonly startMinute: number;
   readonly endMinute: number;
+}
+
+export interface WeeklyBookingHoursWindow extends TimeWindow {
+  readonly id?: string;
+  readonly dayOfWeek: number;
+}
+
+export interface BookingHoursDateException {
+  readonly id: string;
+  readonly date: string;
+  readonly windows: ReadonlyArray<TimeWindow>;
+}
+
+export interface BookingHoursDay {
+  readonly date: string;
+  readonly source: "regular" | "exception";
+  readonly windows: ReadonlyArray<TimeWindow>;
 }
 
 export interface AvailabilityOverview {
   readonly configured: boolean;
-  readonly defaultDurationMinutes: number;
   readonly localToday: string;
   readonly rangeFrom: string;
   readonly rangeTo: string;
-  readonly totalFuturePeriods: number;
-  readonly periods: ReadonlyArray<AvailabilityPeriod>;
+  readonly weeklyHours: ReadonlyArray<WeeklyBookingHoursWindow>;
+  readonly dateExceptions: ReadonlyArray<BookingHoursDateException>;
+  readonly days: ReadonlyArray<BookingHoursDay>;
 }
 
-export interface WeeklyRange {
-  readonly dayOfWeek: number;
-  readonly startMinute: number;
-  readonly endMinute: number;
-}
-
-export interface DatedAvailabilityPeriod {
-  readonly date: string;
-  readonly startMinute: number;
-  readonly endMinute: number;
+export interface BookingHoursConfiguration {
+  readonly configured: boolean;
+  readonly weeklyHours: ReadonlyArray<WeeklyBookingHoursWindow>;
+  readonly dateExceptions: ReadonlyArray<BookingHoursDateException>;
 }
 
 export class InvalidAvailabilityInput extends Schema.TaggedError<InvalidAvailabilityInput>()(
@@ -34,18 +43,8 @@ export class InvalidAvailabilityInput extends Schema.TaggedError<InvalidAvailabi
   {},
 ) {}
 
-export class AvailabilityConflict extends Schema.TaggedError<AvailabilityConflict>()(
-  "AvailabilityConflict",
-  {},
-) {}
-
 export class AvailabilityNotFound extends Schema.TaggedError<AvailabilityNotFound>()(
   "AvailabilityNotFound",
-  {},
-) {}
-
-export class AvailabilityBulkLimitExceeded extends Schema.TaggedError<AvailabilityBulkLimitExceeded>()(
-  "AvailabilityBulkLimitExceeded",
   {},
 ) {}
 

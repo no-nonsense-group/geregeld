@@ -4,7 +4,7 @@ export type UiLocale = (typeof uiLocales)[number];
 
 export const defaultUiLocale: UiLocale = "nl";
 
-export const uiLocaleStorageKey = "geregeld.ui-locale";
+export const uiLocaleStorageKey = "geregeld.ui-locale-choice";
 
 export function isUiLocale(value: unknown): value is UiLocale {
   return uiLocales.some((locale) => locale === value);

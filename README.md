@@ -1,8 +1,9 @@
 # Geregeld
 
 Geregeld is scheduling software for independent professionals and small service
-businesses. Owners publish services and availability. Clients book and manage
-appointments without creating an account.
+businesses. Owners define services and their regular booking hours. Geregeld
+shows Clients only the start times where the selected Service fits. Clients can
+make and manage Bookings without creating an account.
 
 ## Documentation
 

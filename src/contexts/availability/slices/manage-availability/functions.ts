@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Option } from "effect";
+
 import {
   AuthenticationUnavailable,
   Unauthenticated,
@@ -12,28 +13,22 @@ import { findOrganizationForUser } from "#/contexts/organizations/slices/setup-o
 import { getIdentitySessionToken } from "#/platform/auth/session.server";
 import { appRuntime } from "#/platform/runtime/app-runtime.server";
 import {
-  AvailabilityBulkLimitExceeded,
-  AvailabilityConflict,
   AvailabilityNotFound,
   AvailabilityUnavailable,
   InvalidAvailabilityInput,
 } from "./contract";
 import type { AvailabilityGateway } from "./gateway";
 import {
-  applyWeeklyAvailability,
-  createAvailabilityPeriod,
-  deleteAvailabilityPeriod,
+  deleteBookingHoursDateException,
   getAvailabilityOverview,
-  updateAvailabilityPeriod,
-  updateDefaultAvailabilityDuration,
+  replaceWeeklyBookingHours,
+  upsertBookingHoursDateException,
 } from "./workflow";
 
 type AvailabilityActionError =
   | "UNAUTHENTICATED"
   | "INVALID_INPUT"
-  | "CONFLICT"
   | "NOT_FOUND"
-  | "BULK_LIMIT"
   | "UNAVAILABLE";
 
 function toActionError(error: unknown): AvailabilityActionError {
@@ -43,14 +38,8 @@ function toActionError(error: unknown): AvailabilityActionError {
   if (error instanceof InvalidAvailabilityInput) {
     return "INVALID_INPUT";
   }
-  if (error instanceof AvailabilityConflict) {
-    return "CONFLICT";
-  }
   if (error instanceof AvailabilityNotFound) {
     return "NOT_FOUND";
-  }
-  if (error instanceof AvailabilityBulkLimitExceeded) {
-    return "BULK_LIMIT";
   }
   if (
     error instanceof AuthenticationUnavailable ||
@@ -107,7 +96,19 @@ export const getAvailabilityFn = createServerFn({ method: "GET" })
     ),
   );
 
-export const updateDefaultAvailabilityDurationFn = createServerFn({
+export const replaceWeeklyBookingHoursFn = createServerFn({ method: "POST" })
+  .validator((input: unknown) => input)
+  .handler(({ data }) =>
+    runAction(
+      currentOrganization().pipe(
+        Effect.flatMap((organization) =>
+          replaceWeeklyBookingHours(organization.id, data),
+        ),
+      ),
+    ),
+  );
+
+export const upsertBookingHoursDateExceptionFn = createServerFn({
   method: "POST",
 })
   .validator((input: unknown) => input)
@@ -115,31 +116,7 @@ export const updateDefaultAvailabilityDurationFn = createServerFn({
     runAction(
       currentOrganization().pipe(
         Effect.flatMap((organization) =>
-          updateDefaultAvailabilityDuration(organization.id, data),
-        ),
-      ),
-    ),
-  );
-
-export const applyWeeklyAvailabilityFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => input)
-  .handler(({ data }) =>
-    runAction(
-      currentOrganization().pipe(
-        Effect.flatMap((organization) =>
-          applyWeeklyAvailability(organization.id, organization.timeZone, data),
-        ),
-      ),
-    ),
-  );
-
-export const createAvailabilityPeriodFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => input)
-  .handler(({ data }) =>
-    runAction(
-      currentOrganization().pipe(
-        Effect.flatMap((organization) =>
-          createAvailabilityPeriod(
+          upsertBookingHoursDateException(
             organization.id,
             organization.timeZone,
             data,
@@ -149,29 +126,15 @@ export const createAvailabilityPeriodFn = createServerFn({ method: "POST" })
     ),
   );
 
-export const updateAvailabilityPeriodFn = createServerFn({ method: "POST" })
+export const deleteBookingHoursDateExceptionFn = createServerFn({
+  method: "POST",
+})
   .validator((input: unknown) => input)
   .handler(({ data }) =>
     runAction(
       currentOrganization().pipe(
         Effect.flatMap((organization) =>
-          updateAvailabilityPeriod(
-            organization.id,
-            organization.timeZone,
-            data,
-          ),
-        ),
-      ),
-    ),
-  );
-
-export const deleteAvailabilityPeriodFn = createServerFn({ method: "POST" })
-  .validator((input: unknown) => input)
-  .handler(({ data }) =>
-    runAction(
-      currentOrganization().pipe(
-        Effect.flatMap((organization) =>
-          deleteAvailabilityPeriod(organization.id, data),
+          deleteBookingHoursDateException(organization.id, data),
         ),
       ),
     ),

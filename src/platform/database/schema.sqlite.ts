@@ -62,24 +62,22 @@ export const identity_registration_challenge = sqliteTable(
   },
 );
 
-export const identity_login_challenge = sqliteTable("identity_login_challenge", {
-  id: id(),
-  email: text("email").notNull().unique(),
-  codeHash: text("code_hash").notNull(),
-  attempts: integer("attempts").default(0).notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: createdAt(),
-});
+export const identity_login_challenge = sqliteTable(
+  "identity_login_challenge",
+  {
+    id: id(),
+    email: text("email").notNull().unique(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdAt: createdAt(),
+  },
+);
 
 export const organization = sqliteTable("organization", {
   id: id(),
   name: text("name").notNull(),
   timeZone: text("time_zone").notNull(),
-  defaultAvailabilityPeriodMinutes: integer(
-    "default_availability_period_minutes",
-  )
-    .default(30)
-    .notNull(),
   availabilityConfiguredAt: integer("availability_configured_at", {
     mode: "timestamp",
   }),
@@ -87,39 +85,101 @@ export const organization = sqliteTable("organization", {
   updatedAt: updatedAt(),
 });
 
-export const availability_period = sqliteTable(
-  "availability_period",
+export const booking_hours_window = sqliteTable(
+  "booking_hours_window",
   {
     id: id(),
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    date: text("date").notNull(),
+    dayOfWeek: integer("day_of_week").notNull(),
     startMinute: integer("start_minute").notNull(),
     endMinute: integer("end_minute").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
-    index("availability_period_organization_date_idx").on(
+    index("booking_hours_window_organization_day_idx").on(
+      table.organizationId,
+      table.dayOfWeek,
+    ),
+    check(
+      "booking_hours_window_day_of_week_check",
+      sql`${table.dayOfWeek} >= 0 AND ${table.dayOfWeek} <= 6`,
+    ),
+    check(
+      "booking_hours_window_start_minute_check",
+      sql`${table.startMinute} >= 0 AND ${table.startMinute} < 1440`,
+    ),
+    check(
+      "booking_hours_window_end_minute_check",
+      sql`${table.endMinute} > 0 AND ${table.endMinute} <= 1440`,
+    ),
+    check(
+      "booking_hours_window_order_check",
+      sql`${table.startMinute} < ${table.endMinute}`,
+    ),
+    uniqueIndex("booking_hours_window_unique").on(
+      table.organizationId,
+      table.dayOfWeek,
+      table.startMinute,
+      table.endMinute,
+    ),
+  ],
+);
+
+export const booking_hours_date_exception = sqliteTable(
+  "booking_hours_date_exception",
+  {
+    id: id(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("booking_hours_date_exception_organization_date_uidx").on(
       table.organizationId,
       table.date,
     ),
     check(
-      "availability_period_start_minute_check",
+      "booking_hours_date_exception_date_limit_check",
+      sql`${table.date} <= '2099-12-31'`,
+    ),
+  ],
+);
+
+export const booking_hours_date_exception_window = sqliteTable(
+  "booking_hours_date_exception_window",
+  {
+    id: id(),
+    exceptionId: text("exception_id")
+      .notNull()
+      .references(() => booking_hours_date_exception.id, {
+        onDelete: "cascade",
+      }),
+    startMinute: integer("start_minute").notNull(),
+    endMinute: integer("end_minute").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("booking_hours_date_exception_window_exception_idx").on(
+      table.exceptionId,
+    ),
+    check(
+      "booking_hours_date_exception_window_start_minute_check",
       sql`${table.startMinute} >= 0 AND ${table.startMinute} < 1440`,
     ),
     check(
-      "availability_period_end_minute_check",
+      "booking_hours_date_exception_window_end_minute_check",
       sql`${table.endMinute} > 0 AND ${table.endMinute} <= 1440`,
     ),
     check(
-      "availability_period_order_check",
+      "booking_hours_date_exception_window_order_check",
       sql`${table.startMinute} < ${table.endMinute}`,
-    ),
-    check(
-      "availability_period_date_limit_check",
-      sql`${table.date} <= '2099-12-31'`,
     ),
   ],
 );
@@ -128,7 +188,9 @@ export const organization_membership = sqliteTable(
   "organization_membership",
   {
     id: id(),
-    role: text("role", { enum: ["owner"] }).default("owner").notNull(),
+    role: text("role", { enum: ["owner"] })
+      .default("owner")
+      .notNull(),
     createdAt: createdAt(),
     organizationId: text("organization_id")
       .notNull()
@@ -162,15 +224,37 @@ export const identity_sessionRelations = relations(
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   memberships: many(organization_membership),
-  availabilityPeriods: many(availability_period),
+  bookingHoursWindows: many(booking_hours_window),
+  bookingHoursDateExceptions: many(booking_hours_date_exception),
 }));
 
-export const availability_periodRelations = relations(
-  availability_period,
+export const booking_hours_windowRelations = relations(
+  booking_hours_window,
   ({ one }) => ({
     organization: one(organization, {
-      fields: [availability_period.organizationId],
+      fields: [booking_hours_window.organizationId],
       references: [organization.id],
+    }),
+  }),
+);
+
+export const booking_hours_date_exceptionRelations = relations(
+  booking_hours_date_exception,
+  ({ many, one }) => ({
+    organization: one(organization, {
+      fields: [booking_hours_date_exception.organizationId],
+      references: [organization.id],
+    }),
+    windows: many(booking_hours_date_exception_window),
+  }),
+);
+
+export const booking_hours_date_exception_windowRelations = relations(
+  booking_hours_date_exception_window,
+  ({ one }) => ({
+    exception: one(booking_hours_date_exception, {
+      fields: [booking_hours_date_exception_window.exceptionId],
+      references: [booking_hours_date_exception.id],
     }),
   }),
 );

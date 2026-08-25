@@ -1,53 +1,34 @@
 import "@tanstack/react-start/server-only";
 
-import { and, asc, between, count, eq, gt, lt, ne, or } from "drizzle-orm";
+import { and, asc, between, eq } from "drizzle-orm";
 import { Effect, Layer } from "effect";
 
 import {
-  AvailabilityConflict,
   AvailabilityNotFound,
   AvailabilityUnavailable,
 } from "#/contexts/availability/slices/manage-availability/contract";
 import { AvailabilityGateway } from "#/contexts/availability/slices/manage-availability/gateway";
 import { database } from "#/platform/database/drizzle.server";
-import { availability_period, organization } from "#/platform/database/schema";
+import {
+  booking_hours_date_exception,
+  booking_hours_date_exception_window,
+  booking_hours_window,
+  organization,
+} from "#/platform/database/schema";
 import { acquireOrganizationLock } from "#/platform/database/write-lock.server";
 
-function mapCreateError(error: unknown) {
-  return error instanceof AvailabilityConflict
-    ? error
-    : new AvailabilityUnavailable();
-}
-
-function mapUpdateError(error: unknown) {
-  if (
-    error instanceof AvailabilityConflict ||
-    error instanceof AvailabilityNotFound
-  ) {
-    return error;
-  }
-
+function unavailable() {
   return new AvailabilityUnavailable();
-}
-
-function mapDeleteError(error: unknown) {
-  return error instanceof AvailabilityNotFound
-    ? error
-    : new AvailabilityUnavailable();
 }
 
 export const PostgresManageAvailabilityLive = Layer.succeed(
   AvailabilityGateway,
   {
-    getOverview: (input) =>
+    getConfiguration: (input) =>
       Effect.tryPromise({
         try: async () => {
           const [settings] = await database
-            .select({
-              configuredAt: organization.availabilityConfiguredAt,
-              defaultDurationMinutes:
-                organization.defaultAvailabilityPeriodMinutes,
-            })
+            .select({ configuredAt: organization.availabilityConfiguredAt })
             .from(organization)
             .where(eq(organization.id, input.organizationId))
             .limit(1);
@@ -56,224 +37,202 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
             throw new AvailabilityUnavailable();
           }
 
-          const isFuture = or(
-            gt(availability_period.date, input.today),
-            and(
-              eq(availability_period.date, input.today),
-              gt(availability_period.startMinute, input.currentMinute),
-            ),
+          const [weeklyHours, exceptions, exceptionWindows] = await Promise.all(
+            [
+              database
+                .select({
+                  id: booking_hours_window.id,
+                  dayOfWeek: booking_hours_window.dayOfWeek,
+                  startMinute: booking_hours_window.startMinute,
+                  endMinute: booking_hours_window.endMinute,
+                })
+                .from(booking_hours_window)
+                .where(
+                  eq(booking_hours_window.organizationId, input.organizationId),
+                )
+                .orderBy(
+                  asc(booking_hours_window.dayOfWeek),
+                  asc(booking_hours_window.startMinute),
+                ),
+              database
+                .select({
+                  id: booking_hours_date_exception.id,
+                  date: booking_hours_date_exception.date,
+                })
+                .from(booking_hours_date_exception)
+                .where(
+                  and(
+                    eq(
+                      booking_hours_date_exception.organizationId,
+                      input.organizationId,
+                    ),
+                    between(
+                      booking_hours_date_exception.date,
+                      input.from,
+                      input.to,
+                    ),
+                  ),
+                )
+                .orderBy(asc(booking_hours_date_exception.date)),
+              database
+                .select({
+                  exceptionId: booking_hours_date_exception_window.exceptionId,
+                  startMinute: booking_hours_date_exception_window.startMinute,
+                  endMinute: booking_hours_date_exception_window.endMinute,
+                })
+                .from(booking_hours_date_exception_window)
+                .innerJoin(
+                  booking_hours_date_exception,
+                  eq(
+                    booking_hours_date_exception_window.exceptionId,
+                    booking_hours_date_exception.id,
+                  ),
+                )
+                .where(
+                  and(
+                    eq(
+                      booking_hours_date_exception.organizationId,
+                      input.organizationId,
+                    ),
+                    between(
+                      booking_hours_date_exception.date,
+                      input.from,
+                      input.to,
+                    ),
+                  ),
+                )
+                .orderBy(
+                  asc(booking_hours_date_exception.date),
+                  asc(booking_hours_date_exception_window.startMinute),
+                ),
+            ],
           );
-          const [periods, totals] = await Promise.all([
-            database
-              .select({
-                id: availability_period.id,
-                date: availability_period.date,
-                startMinute: availability_period.startMinute,
-                endMinute: availability_period.endMinute,
-              })
-              .from(availability_period)
-              .where(
-                and(
-                  eq(availability_period.organizationId, input.organizationId),
-                  between(availability_period.date, input.from, input.to),
-                  isFuture,
-                ),
-              )
-              .orderBy(
-                asc(availability_period.date),
-                asc(availability_period.startMinute),
-              ),
-            database
-              .select({ value: count() })
-              .from(availability_period)
-              .where(
-                and(
-                  eq(availability_period.organizationId, input.organizationId),
-                  isFuture,
-                ),
-              ),
-          ]);
 
           return {
             configured: settings.configuredAt !== null,
-            defaultDurationMinutes: settings.defaultDurationMinutes,
-            localToday: input.today,
-            rangeFrom: input.from,
-            rangeTo: input.to,
-            totalFuturePeriods: totals[0]?.value ?? 0,
-            periods,
+            weeklyHours,
+            dateExceptions: exceptions.map((exception) => ({
+              ...exception,
+              windows: exceptionWindows
+                .filter((window) => window.exceptionId === exception.id)
+                .map(({ startMinute, endMinute }) => ({
+                  startMinute,
+                  endMinute,
+                })),
+            })),
           };
         },
-        catch: () => new AvailabilityUnavailable(),
+        catch: unavailable,
       }),
-    updateDefaultDuration: (input) =>
-      Effect.tryPromise({
-        try: async () => {
-          const updated = await database
-            .update(organization)
-            .set({ defaultAvailabilityPeriodMinutes: input.minutes })
-            .where(eq(organization.id, input.organizationId))
-            .returning({ id: organization.id });
-
-          if (updated.length === 0) {
-            throw new AvailabilityUnavailable();
-          }
-        },
-        catch: () => new AvailabilityUnavailable(),
-      }),
-    replaceRange: (input) =>
+    replaceWeeklyHours: (input) =>
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
-            await acquireOrganizationLock(
-              transaction,
-              input.organizationId,
-            );
+            await acquireOrganizationLock(transaction, input.organizationId);
             await transaction
-              .delete(availability_period)
+              .delete(booking_hours_window)
               .where(
-                and(
-                  eq(availability_period.organizationId, input.organizationId),
-                  between(availability_period.date, input.from, input.to),
-                ),
+                eq(booking_hours_window.organizationId, input.organizationId),
               );
 
-            if (input.periods.length > 0) {
-              await transaction.insert(availability_period).values(
-                input.periods.map((period) => ({
+            if (input.windows.length > 0) {
+              await transaction.insert(booking_hours_window).values(
+                input.windows.map((window) => ({
                   organizationId: input.organizationId,
-                  date: period.date,
-                  startMinute: period.startMinute,
-                  endMinute: period.endMinute,
+                  dayOfWeek: window.dayOfWeek,
+                  startMinute: window.startMinute,
+                  endMinute: window.endMinute,
                 })),
               );
-              await transaction
-                .update(organization)
-                .set({ availabilityConfiguredAt: new Date() })
-                .where(eq(organization.id, input.organizationId));
-            }
-          }),
-        catch: () => new AvailabilityUnavailable(),
-      }),
-    createPeriod: (input) =>
-      Effect.tryPromise({
-        try: () =>
-          database.transaction(async (transaction) => {
-            await acquireOrganizationLock(
-              transaction,
-              input.organizationId,
-            );
-            const overlaps = await transaction
-              .select({ id: availability_period.id })
-              .from(availability_period)
-              .where(
-                and(
-                  eq(availability_period.organizationId, input.organizationId),
-                  eq(availability_period.date, input.period.date),
-                  lt(availability_period.startMinute, input.period.endMinute),
-                  gt(availability_period.endMinute, input.period.startMinute),
-                ),
-              )
-              .limit(1);
-            if (overlaps.length > 0) {
-              throw new AvailabilityConflict();
-            }
-
-            const [created] = await transaction
-              .insert(availability_period)
-              .values({
-                organizationId: input.organizationId,
-                date: input.period.date,
-                startMinute: input.period.startMinute,
-                endMinute: input.period.endMinute,
-              })
-              .returning({
-                id: availability_period.id,
-                date: availability_period.date,
-                startMinute: availability_period.startMinute,
-                endMinute: availability_period.endMinute,
-              });
-            if (!created) {
-              throw new AvailabilityUnavailable();
             }
 
             await transaction
               .update(organization)
               .set({ availabilityConfiguredAt: new Date() })
               .where(eq(organization.id, input.organizationId));
-            return created;
           }),
-        catch: mapCreateError,
+        catch: unavailable,
       }),
-    updatePeriod: (input) =>
+    upsertDateException: (input) =>
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
-            await acquireOrganizationLock(
-              transaction,
-              input.organizationId,
-            );
-            const overlaps = await transaction
-              .select({ id: availability_period.id })
-              .from(availability_period)
-              .where(
-                and(
-                  eq(availability_period.organizationId, input.organizationId),
-                  eq(availability_period.date, input.period.date),
-                  ne(availability_period.id, input.id),
-                  lt(availability_period.startMinute, input.period.endMinute),
-                  gt(availability_period.endMinute, input.period.startMinute),
-                ),
-              )
-              .limit(1);
-            if (overlaps.length > 0) {
-              throw new AvailabilityConflict();
-            }
-
-            const [updated] = await transaction
-              .update(availability_period)
-              .set({
-                date: input.period.date,
-                startMinute: input.period.startMinute,
-                endMinute: input.period.endMinute,
+            await acquireOrganizationLock(transaction, input.organizationId);
+            const [exception] = await transaction
+              .insert(booking_hours_date_exception)
+              .values({
+                organizationId: input.organizationId,
+                date: input.date,
               })
-              .where(
-                and(
-                  eq(availability_period.id, input.id),
-                  eq(availability_period.organizationId, input.organizationId),
-                ),
-              )
-              .returning({
-                id: availability_period.id,
-                date: availability_period.date,
-                startMinute: availability_period.startMinute,
-                endMinute: availability_period.endMinute,
-              });
-            if (!updated) {
-              throw new AvailabilityNotFound();
+              .onConflictDoUpdate({
+                target: [
+                  booking_hours_date_exception.organizationId,
+                  booking_hours_date_exception.date,
+                ],
+                set: { updatedAt: new Date() },
+              })
+              .returning({ id: booking_hours_date_exception.id });
+
+            if (!exception) {
+              throw new AvailabilityUnavailable();
             }
 
-            return updated;
+            await transaction
+              .delete(booking_hours_date_exception_window)
+              .where(
+                eq(
+                  booking_hours_date_exception_window.exceptionId,
+                  exception.id,
+                ),
+              );
+
+            if (input.windows.length > 0) {
+              await transaction
+                .insert(booking_hours_date_exception_window)
+                .values(
+                  input.windows.map((window) => ({
+                    exceptionId: exception.id,
+                    startMinute: window.startMinute,
+                    endMinute: window.endMinute,
+                  })),
+                );
+            }
+
+            await transaction
+              .update(organization)
+              .set({ availabilityConfiguredAt: new Date() })
+              .where(eq(organization.id, input.organizationId));
+
+            return {
+              id: exception.id,
+              date: input.date,
+              windows: input.windows,
+            };
           }),
-        catch: mapUpdateError,
+        catch: unavailable,
       }),
-    deletePeriod: (input) =>
+    deleteDateException: (input) =>
       Effect.tryPromise({
         try: async () => {
           const deleted = await database
-            .delete(availability_period)
+            .delete(booking_hours_date_exception)
             .where(
               and(
-                eq(availability_period.id, input.id),
-                eq(availability_period.organizationId, input.organizationId),
+                eq(
+                  booking_hours_date_exception.organizationId,
+                  input.organizationId,
+                ),
+                eq(booking_hours_date_exception.date, input.date),
               ),
             )
-            .returning({ id: availability_period.id });
+            .returning({ id: booking_hours_date_exception.id });
+
           if (deleted.length === 0) {
             throw new AvailabilityNotFound();
           }
         },
-        catch: mapDeleteError,
+        catch: (error) =>
+          error instanceof AvailabilityNotFound ? error : unavailable(),
       }),
   },
 );

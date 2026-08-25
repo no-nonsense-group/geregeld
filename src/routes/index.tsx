@@ -2,13 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 
 import { landingCopy } from "#/content/landing";
+import { resolveUiLocale } from "#/shared/i18n";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
 
 function Home() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const copy = landingCopy[lang];
   const getStartedHref = `/register?lang=${lang}`;
 

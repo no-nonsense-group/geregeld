@@ -1,43 +1,31 @@
-import { Dialog } from "@base-ui/react/dialog";
 import {
   CalendarRange,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
+  Info,
   Plus,
-  Settings2,
   Trash2,
   X,
 } from "lucide-react";
-import {
-  type PointerEvent as ReactPointerEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "#/components/ui/button";
-import { organizationCopy } from "#/content/organization";
+import type { organizationCopy } from "#/content/organization";
 import type {
   AvailabilityOverview,
-  AvailabilityPeriod,
-  WeeklyRange,
+  BookingHoursDateException,
+  TimeWindow,
+  WeeklyBookingHoursWindow,
 } from "#/contexts/availability/slices/manage-availability/contract";
 import {
-  applyWeeklyAvailabilityFn,
-  createAvailabilityPeriodFn,
-  deleteAvailabilityPeriodFn,
+  deleteBookingHoursDateExceptionFn,
   getAvailabilityFn,
-  updateAvailabilityPeriodFn,
-  updateDefaultAvailabilityDurationFn,
+  replaceWeeklyBookingHoursFn,
+  upsertBookingHoursDateExceptionFn,
 } from "#/contexts/availability/slices/manage-availability/functions";
 import {
   addLocalDays,
   localDateDayOfWeek,
-  localDateToEpochDay,
-  localNow,
 } from "#/contexts/availability/slices/manage-availability/local-date";
 import type { UiLocale } from "#/shared/i18n";
 
@@ -64,133 +52,142 @@ interface AvailabilityEditorProps {
   readonly onSaved: () => Promise<void>;
 }
 
-type EditorError = "INVALID_INPUT" | "CONFLICT" | "BULK_LIMIT" | "UNAVAILABLE";
-
-interface ExactRangeInput {
-  readonly dayOfWeek: number;
-  readonly start: string;
-  readonly end: string;
-}
+type EditorError = "INVALID_INPUT" | "UNAVAILABLE";
+type ExceptionMode = "closed" | "custom";
 
 const dayOrder = [1, 2, 3, 4, 5, 6, 0] as const;
-const durationPresets = [15, 30, 45, 60] as const;
-const timelineSlots = Array.from({ length: 96 }, (_, index) => index);
 
 function minuteToTime(minute: number): string {
-  if (minute === 1440) {
-    return "24:00";
-  }
-
-  return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(
-    minute % 60,
+  const normalized = minute === 1440 ? 1439 : minute;
+  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(
+    normalized % 60,
   ).padStart(2, "0")}`;
 }
 
 function timeToMinute(value: string): number | undefined {
-  if (value === "24:00") {
-    return 1440;
-  }
-
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
   if (!match) {
     return undefined;
   }
 
   const hour = Number(match[1]);
   const minute = Number(match[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+  if (hour > 23 || minute > 59) {
     return undefined;
   }
 
   return hour * 60 + minute;
 }
 
-function formatDuration(minutes: number, lang: UiLocale): string {
-  if (minutes < 60) {
-    return lang === "nl" ? `${minutes} minuten` : `${minutes} minutes`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  const hourText =
-    lang === "nl"
-      ? `${hours} ${hours === 1 ? "uur" : "uur"}`
-      : `${hours} ${hours === 1 ? "hour" : "hours"}`;
-  if (remainder === 0) {
-    return hourText;
-  }
-
-  return `${hourText} ${remainder} min`;
-}
-
-function normalizeRanges(ranges: ReadonlyArray<WeeklyRange>) {
-  const sorted = [...ranges].sort(
+function sortWeeklyHours(
+  windows: ReadonlyArray<WeeklyBookingHoursWindow>,
+): Array<WeeklyBookingHoursWindow> {
+  return [...windows].sort(
     (left, right) =>
-      left.dayOfWeek - right.dayOfWeek || left.startMinute - right.startMinute,
+      dayOrder.indexOf(left.dayOfWeek as (typeof dayOrder)[number]) -
+        dayOrder.indexOf(right.dayOfWeek as (typeof dayOrder)[number]) ||
+      left.startMinute - right.startMinute,
   );
-  const result: Array<WeeklyRange> = [];
-  for (const range of sorted) {
-    const previous = result.at(-1);
-    if (
-      previous &&
-      previous.dayOfWeek === range.dayOfWeek &&
-      range.startMinute <= previous.endMinute
-    ) {
-      result[result.length - 1] = {
-        ...previous,
-        endMinute: Math.max(previous.endMinute, range.endMinute),
-      };
-    } else {
-      result.push(range);
-    }
-  }
-
-  return result;
 }
 
-function generatedForRanges(
-  ranges: ReadonlyArray<WeeklyRange>,
-  durationMinutes: number,
-) {
-  const generated: Array<WeeklyRange> = [];
-  for (const range of ranges) {
-    for (
-      let startMinute = range.startMinute;
-      startMinute + durationMinutes <= range.endMinute;
-      startMinute += durationMinutes
-    ) {
-      generated.push({
-        dayOfWeek: range.dayOfWeek,
-        startMinute,
-        endMinute: startMinute + durationMinutes,
-      });
-    }
-  }
-  return generated;
+function sortWindows(windows: ReadonlyArray<TimeWindow>): Array<TimeWindow> {
+  return [...windows].sort(
+    (left, right) => left.startMinute - right.startMinute,
+  );
 }
 
-function dateLabel(
-  date: string,
-  lang: UiLocale,
-  options?: Intl.DateTimeFormatOptions,
-) {
+function windowsAreValid(windows: ReadonlyArray<TimeWindow>): boolean {
+  const sorted = sortWindows(windows);
+  return sorted.every(
+    (window, index) =>
+      Number.isInteger(window.startMinute) &&
+      Number.isInteger(window.endMinute) &&
+      window.startMinute >= 0 &&
+      window.endMinute <= 1440 &&
+      window.startMinute < window.endMinute &&
+      (index === 0 || sorted[index - 1].endMinute <= window.startMinute),
+  );
+}
+
+function weeklyHoursAreValid(
+  windows: ReadonlyArray<WeeklyBookingHoursWindow>,
+): boolean {
+  return dayOrder.every((dayOfWeek) =>
+    windowsAreValid(windows.filter((window) => window.dayOfWeek === dayOfWeek)),
+  );
+}
+
+function defaultWeeklyHours(): Array<WeeklyBookingHoursWindow> {
+  return dayOrder
+    .filter((dayOfWeek) => dayOfWeek >= 1 && dayOfWeek <= 5)
+    .map((dayOfWeek) => ({
+      dayOfWeek,
+      startMinute: 9 * 60,
+      endMinute: 17 * 60,
+    }));
+}
+
+function dateLabel(date: string, lang: UiLocale): string {
   return new Intl.DateTimeFormat(lang, {
     timeZone: "UTC",
+    weekday: "short",
     day: "numeric",
     month: "short",
-    ...options,
+    year: "numeric",
   }).format(new Date(`${date}T12:00:00.000Z`));
 }
 
-function actionError(error: string): EditorError {
-  if (
-    error === "INVALID_INPUT" ||
-    error === "CONFLICT" ||
-    error === "BULK_LIMIT"
-  ) {
-    return error;
+function dayLabel(dayIndex: number, lang: UiLocale): string {
+  return new Intl.DateTimeFormat(lang, {
+    timeZone: "UTC",
+    weekday: "long",
+  }).format(new Date(Date.UTC(2024, 0, 1 + dayIndex)));
+}
+
+function regularHoursForDate(
+  date: string,
+  weeklyHours: ReadonlyArray<WeeklyBookingHoursWindow>,
+): Array<TimeWindow> {
+  const dayOfWeek = localDateDayOfWeek(date);
+  return weeklyHours
+    .filter((window) => window.dayOfWeek === dayOfWeek)
+    .map(({ startMinute, endMinute }) => ({ startMinute, endMinute }));
+}
+
+function nextDateWithoutException(
+  today: string,
+  exceptions: ReadonlyArray<BookingHoursDateException>,
+): string {
+  const exceptionDates = new Set(exceptions.map((exception) => exception.date));
+  for (let offset = 1; offset <= 365; offset += 1) {
+    const date = addLocalDays(today, offset);
+    if (!exceptionDates.has(date)) {
+      return date;
+    }
   }
-  return "UNAVAILABLE";
+
+  return addLocalDays(today, 1);
+}
+
+function newWindowAfter(windows: ReadonlyArray<TimeWindow>): TimeWindow {
+  if (windows.length === 0) {
+    return { startMinute: 9 * 60, endMinute: 17 * 60 };
+  }
+
+  const last = sortWindows(windows).at(-1);
+  if (!last || last.endMinute >= 23 * 60) {
+    return { startMinute: 8 * 60, endMinute: 9 * 60 };
+  }
+
+  const startMinute = Math.min(last.endMinute + 60, 23 * 60);
+  return {
+    startMinute,
+    endMinute: Math.min(startMinute + 4 * 60, 23 * 60 + 59),
+  };
+}
+
+function actionError(error: string): EditorError {
+  return error === "INVALID_INPUT" ? "INVALID_INPUT" : "UNAVAILABLE";
 }
 
 export function AvailabilityEditor({
@@ -201,327 +198,327 @@ export function AvailabilityEditor({
   onClose,
   onSaved,
 }: AvailabilityEditorProps) {
-  const [tab, setTab] = useState<"weekly" | "manual">("weekly");
-  const [defaultDuration, setDefaultDuration] = useState(
-    initial.defaultDurationMinutes,
+  const [tab, setTab] = useState<"regular" | "exceptions">("regular");
+  const [weeklyHours, setWeeklyHours] = useState(() =>
+    initial.configured
+      ? sortWeeklyHours(initial.weeklyHours)
+      : defaultWeeklyHours(),
   );
-  const [duration, setDuration] = useState(initial.defaultDurationMinutes);
-  const [isSavingDefault, setIsSavingDefault] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
+  const [exceptions, setExceptions] = useState<
+    Array<BookingHoursDateException>
+  >([...initial.dateExceptions]);
+  const [isSavingRegular, setIsSavingRegular] = useState(false);
+  const [isSavingException, setIsSavingException] = useState(false);
   const [error, setError] = useState<EditorError>();
   const [message, setMessage] = useState<string>();
-  const [ranges, setRanges] = useState<Array<WeeklyRange>>([]);
-  const [startDate, setStartDate] = useState(initial.localToday);
-  const [endDate, setEndDate] = useState(addLocalDays(initial.localToday, 13));
-  const [drag, setDrag] = useState<{
-    dayOfWeek: number;
-    startSlot: number;
-    currentSlot: number;
-  }>();
-  const [exactDialogOpen, setExactDialogOpen] = useState(false);
-  const [exactInput, setExactInput] = useState<ExactRangeInput>({
-    dayOfWeek: 1,
-    start: "09:00",
-    end: "17:00",
-  });
-  const [exactInputInvalid, setExactInputInvalid] = useState(false);
-  const [week, setWeek] = useState(initial);
-  const [manualDate, setManualDate] = useState(
-    addLocalDays(initial.localToday, 1),
+  const [exceptionDate, setExceptionDate] = useState(() =>
+    nextDateWithoutException(initial.localToday, initial.dateExceptions),
   );
-  const [manualStart, setManualStart] = useState("09:00");
-  const [manualEnd, setManualEnd] = useState(
-    minuteToTime(Math.min(540 + initial.defaultDurationMinutes, 1440)),
+  const [exceptionMode, setExceptionMode] = useState<ExceptionMode>("closed");
+  const [exceptionWindows, setExceptionWindows] = useState<Array<TimeWindow>>(
+    [],
   );
-  const [editingId, setEditingId] = useState<string>();
-  const [isSavingPeriod, setIsSavingPeriod] = useState(false);
+  const [editingDate, setEditingDate] = useState<string>();
 
   useEffect(() => {
-    setDefaultDuration(initial.defaultDurationMinutes);
-    setWeek((current) =>
-      current.rangeFrom === initial.rangeFrom
-        ? initial
-        : {
-            ...current,
-            configured: initial.configured,
-            defaultDurationMinutes: initial.defaultDurationMinutes,
-            totalFuturePeriods: initial.totalFuturePeriods,
-          },
-    );
-  }, [initial]);
-
-  const generated = useMemo(
-    () => generatedForRanges(ranges, duration),
-    [duration, ranges],
-  );
-  const currentLocal = localNow(timeZone, new Date());
-  const bulkCount = useMemo(() => {
-    if (endDate < startDate) {
-      return 0;
+    if (initial.configured) {
+      setWeeklyHours(sortWeeklyHours(initial.weeklyHours));
     }
-
-    let count = 0;
-    const startDay = localDateToEpochDay(startDate);
-    const endDay = localDateToEpochDay(endDate);
-    for (let day = startDay; day <= endDay; day += 1) {
-      const date = addLocalDays(startDate, day - startDay);
-      const dayOfWeek = localDateDayOfWeek(date);
-      count += generated.filter(
-        (period) =>
-          period.dayOfWeek === dayOfWeek &&
-          (date !== currentLocal.date ||
-            period.startMinute > currentLocal.minute),
-      ).length;
-    }
-    return count;
-  }, [currentLocal.date, currentLocal.minute, endDate, generated, startDate]);
-
-  const finishDraw = useCallback(() => {
-    if (!drag) {
-      return;
-    }
-
-    const first = Math.min(drag.startSlot, drag.currentSlot);
-    const last = Math.max(drag.startSlot, drag.currentSlot);
-    setRanges((current) =>
-      normalizeRanges([
-        ...current,
-        {
-          dayOfWeek: drag.dayOfWeek,
-          startMinute: first * 15,
-          endMinute: (last + 1) * 15,
-        },
-      ]),
-    );
-    setDrag(undefined);
-  }, [drag]);
+  }, [initial.configured, initial.weeklyHours]);
 
   useEffect(() => {
-    if (!drag) {
-      return;
-    }
-
-    window.addEventListener("pointerup", finishDraw, { once: true });
-    return () => window.removeEventListener("pointerup", finishDraw);
-  }, [drag, finishDraw]);
-
-  function setPresetDuration(minutes: number) {
-    setDuration(minutes);
-  }
-
-  function addExactRange() {
-    const startMinute = timeToMinute(exactInput.start);
-    const endMinute = timeToMinute(exactInput.end);
-    if (
-      startMinute === undefined ||
-      endMinute === undefined ||
-      startMinute >= endMinute ||
-      startMinute >= 1440
-    ) {
-      setExactInputInvalid(true);
-      return;
-    }
-
-    setExactInputInvalid(false);
-    setError(undefined);
-    setRanges((current) =>
-      normalizeRanges([
-        ...current,
-        { dayOfWeek: exactInput.dayOfWeek, startMinute, endMinute },
-      ]),
-    );
-    setExactDialogOpen(false);
-  }
-
-  async function saveDefaultDuration() {
-    if (
-      defaultDuration !== initial.defaultDurationMinutes &&
-      !window.confirm(copy.defaultWarning)
-    ) {
-      return;
-    }
-
-    setError(undefined);
-    setIsSavingDefault(true);
-    try {
-      const result = await updateDefaultAvailabilityDurationFn({
-        data: { minutes: defaultDuration },
-      });
-      if (!result.ok) {
-        setError(actionError(result.error));
-        return;
+    let active = true;
+    void getAvailabilityFn({
+      data: {
+        from: initial.localToday,
+        to: addLocalDays(initial.localToday, 365),
+      },
+    }).then((result) => {
+      if (active && result.ok) {
+        setExceptions([...result.value.dateExceptions]);
       }
-
-      setDuration(defaultDuration);
-      await onSaved();
-    } catch {
-      setError("UNAVAILABLE");
-    } finally {
-      setIsSavingDefault(false);
-    }
-  }
-
-  async function loadWeek(from: string) {
-    const result = await getAvailabilityFn({
-      data: { from, to: addLocalDays(from, 6) },
     });
-    if (result.ok) {
-      setWeek(result.value);
-    } else {
-      setError(actionError(result.error));
-    }
-  }
 
-  async function applyWeekly() {
+    return () => {
+      active = false;
+    };
+  }, [initial.localToday]);
+
+  const openDayCount = useMemo(
+    () =>
+      dayOrder.filter((dayOfWeek) =>
+        weeklyHours.some((window) => window.dayOfWeek === dayOfWeek),
+      ).length,
+    [weeklyHours],
+  );
+  const regularInvalid = !weeklyHoursAreValid(weeklyHours);
+  const exceptionInvalid =
+    exceptionMode === "custom" &&
+    (exceptionWindows.length === 0 || !windowsAreValid(exceptionWindows));
+
+  function toggleDay(dayOfWeek: number) {
     setError(undefined);
     setMessage(undefined);
-    if (bulkCount === 0 || ranges.length === 0) {
+    setWeeklyHours((current) => {
+      const isOpen = current.some((window) => window.dayOfWeek === dayOfWeek);
+      return isOpen
+        ? current.filter((window) => window.dayOfWeek !== dayOfWeek)
+        : sortWeeklyHours([
+            ...current,
+            { dayOfWeek, startMinute: 9 * 60, endMinute: 17 * 60 },
+          ]);
+    });
+  }
+
+  function updateWeeklyWindow(
+    dayOfWeek: number,
+    index: number,
+    field: "startMinute" | "endMinute",
+    value: string,
+  ) {
+    const minute = timeToMinute(value);
+    if (minute === undefined) {
+      return;
+    }
+
+    setError(undefined);
+    setMessage(undefined);
+    setWeeklyHours((current) => {
+      let dayIndex = -1;
+      return current.map((window) => {
+        if (window.dayOfWeek !== dayOfWeek) {
+          return window;
+        }
+        dayIndex += 1;
+        return dayIndex === index ? { ...window, [field]: minute } : window;
+      });
+    });
+  }
+
+  function addWeeklyWindow(dayOfWeek: number) {
+    const currentDay = weeklyHours.filter(
+      (window) => window.dayOfWeek === dayOfWeek,
+    );
+    setWeeklyHours((current) =>
+      sortWeeklyHours([
+        ...current,
+        { dayOfWeek, ...newWindowAfter(currentDay) },
+      ]),
+    );
+  }
+
+  function removeWeeklyWindow(dayOfWeek: number, index: number) {
+    let dayIndex = -1;
+    setWeeklyHours((current) =>
+      current.filter((window) => {
+        if (window.dayOfWeek !== dayOfWeek) {
+          return true;
+        }
+        dayIndex += 1;
+        return dayIndex !== index;
+      }),
+    );
+  }
+
+  async function saveRegularHours() {
+    if (regularInvalid) {
       setError("INVALID_INPUT");
       return;
     }
-    if (bulkCount > 1000) {
-      setError("BULK_LIMIT");
-      return;
-    }
 
-    setIsApplying(true);
+    setError(undefined);
+    setMessage(undefined);
+    setIsSavingRegular(true);
     try {
-      const existing = await getAvailabilityFn({
-        data: { from: startDate, to: endDate },
-      });
-      if (!existing.ok) {
-        setError(actionError(existing.error));
-        return;
-      }
-      if (
-        existing.value.periods.length > 0 &&
-        !window.confirm(copy.replacementConfirm)
-      ) {
-        return;
-      }
-
-      const result = await applyWeeklyAvailabilityFn({
+      const result = await replaceWeeklyBookingHoursFn({
         data: {
-          startDate,
-          endDate,
-          durationMinutes: duration,
-          ranges,
-        },
-      });
-      if (!result.ok) {
-        setError(actionError(result.error));
-        return;
-      }
-
-      setMessage(copy.setupComplete);
-      await loadWeek(week.rangeFrom);
-      await onSaved();
-    } catch {
-      setError("UNAVAILABLE");
-    } finally {
-      setIsApplying(false);
-    }
-  }
-
-  function resetManualForm() {
-    setEditingId(undefined);
-    setManualDate(addLocalDays(initial.localToday, 1));
-    setManualStart("09:00");
-    setManualEnd(minuteToTime(Math.min(540 + defaultDuration, 1440)));
-  }
-
-  function editPeriod(period: AvailabilityPeriod) {
-    setTab("manual");
-    setEditingId(period.id);
-    setManualDate(period.date);
-    setManualStart(minuteToTime(period.startMinute));
-    setManualEnd(minuteToTime(period.endMinute));
-    setError(undefined);
-    setMessage(undefined);
-  }
-
-  async function saveManualPeriod() {
-    const startMinute = timeToMinute(manualStart);
-    const endMinute = timeToMinute(manualEnd);
-    if (
-      startMinute === undefined ||
-      endMinute === undefined ||
-      startMinute >= endMinute ||
-      startMinute >= 1440
-    ) {
-      setError("INVALID_INPUT");
-      return;
-    }
-
-    setError(undefined);
-    setMessage(undefined);
-    setIsSavingPeriod(true);
-    try {
-      const result = editingId
-        ? await updateAvailabilityPeriodFn({
-            data: {
-              id: editingId,
-              date: manualDate,
+          windows: sortWeeklyHours(weeklyHours).map(
+            ({ dayOfWeek, startMinute, endMinute }) => ({
+              dayOfWeek,
               startMinute,
               endMinute,
-            },
-          })
-        : await createAvailabilityPeriodFn({
-            data: { date: manualDate, startMinute, endMinute },
-          });
+            }),
+          ),
+        },
+      });
       if (!result.ok) {
         setError(actionError(result.error));
         return;
       }
 
-      setMessage(copy.setupComplete);
-      resetManualForm();
-      await loadWeek(week.rangeFrom);
+      setMessage(copy.saved);
       await onSaved();
     } catch {
       setError("UNAVAILABLE");
     } finally {
-      setIsSavingPeriod(false);
+      setIsSavingRegular(false);
     }
   }
 
-  async function removePeriod(period: AvailabilityPeriod) {
+  function selectExceptionMode(mode: ExceptionMode) {
+    setExceptionMode(mode);
+    setError(undefined);
+    setMessage(undefined);
+    if (mode === "custom" && exceptionWindows.length === 0) {
+      const regular = regularHoursForDate(exceptionDate, weeklyHours);
+      setExceptionWindows(
+        regular.length > 0
+          ? regular
+          : [{ startMinute: 9 * 60, endMinute: 17 * 60 }],
+      );
+    }
+  }
+
+  function updateExceptionWindow(
+    index: number,
+    field: "startMinute" | "endMinute",
+    value: string,
+  ) {
+    const minute = timeToMinute(value);
+    if (minute === undefined) {
+      return;
+    }
+    setExceptionWindows((current) =>
+      current.map((window, windowIndex) =>
+        windowIndex === index ? { ...window, [field]: minute } : window,
+      ),
+    );
+  }
+
+  function resetExceptionForm(
+    currentExceptions: ReadonlyArray<BookingHoursDateException> = exceptions,
+  ) {
+    setEditingDate(undefined);
+    setExceptionDate(
+      nextDateWithoutException(initial.localToday, currentExceptions),
+    );
+    setExceptionMode("closed");
+    setExceptionWindows([]);
+  }
+
+  function editException(exception: BookingHoursDateException) {
+    setTab("exceptions");
+    setEditingDate(exception.date);
+    setExceptionDate(exception.date);
+    setExceptionMode(exception.windows.length === 0 ? "closed" : "custom");
+    setExceptionWindows([...exception.windows]);
+    setError(undefined);
+    setMessage(undefined);
+  }
+
+  async function saveException() {
+    if (exceptionInvalid) {
+      setError("INVALID_INPUT");
+      return;
+    }
+
+    setError(undefined);
+    setMessage(undefined);
+    setIsSavingException(true);
+    try {
+      const result = await upsertBookingHoursDateExceptionFn({
+        data: {
+          date: exceptionDate,
+          windows:
+            exceptionMode === "closed" ? [] : sortWindows(exceptionWindows),
+        },
+      });
+      if (!result.ok) {
+        setError(actionError(result.error));
+        return;
+      }
+
+      const nextExceptions = [
+        ...exceptions.filter((item) => item.date !== exceptionDate),
+        result.value,
+      ].sort((left, right) => left.date.localeCompare(right.date));
+      setExceptions(nextExceptions);
+      setMessage(copy.saved);
+      resetExceptionForm(nextExceptions);
+      await onSaved();
+    } catch {
+      setError("UNAVAILABLE");
+    } finally {
+      setIsSavingException(false);
+    }
+  }
+
+  async function removeException(exception: BookingHoursDateException) {
     if (!window.confirm(copy.removeConfirm)) {
       return;
     }
 
     setError(undefined);
+    setMessage(undefined);
     try {
-      const result = await deleteAvailabilityPeriodFn({
-        data: { id: period.id },
+      const result = await deleteBookingHoursDateExceptionFn({
+        data: { date: exception.date },
       });
       if (!result.ok) {
         setError(actionError(result.error));
         return;
       }
 
-      await loadWeek(week.rangeFrom);
+      setExceptions((current) =>
+        current.filter((item) => item.date !== exception.date),
+      );
+      if (editingDate === exception.date) {
+        resetExceptionForm();
+      }
       await onSaved();
     } catch {
       setError("UNAVAILABLE");
     }
   }
 
-  const manualStartMinute = timeToMinute(manualStart);
-  const manualEndMinute = timeToMinute(manualEnd);
-  const manualDuration =
-    manualStartMinute !== undefined &&
-    manualEndMinute !== undefined &&
-    manualEndMinute > manualStartMinute
-      ? manualEndMinute - manualStartMinute
-      : undefined;
+  function renderTimeWindow(
+    window: TimeWindow,
+    index: number,
+    update: (
+      index: number,
+      field: "startMinute" | "endMinute",
+      value: string,
+    ) => void,
+    remove: (index: number) => void,
+  ) {
+    return (
+      <div
+        key={`${window.startMinute}-${window.endMinute}-${index}`}
+        className="flex items-center gap-2"
+      >
+        <input
+          type="time"
+          step={900}
+          value={minuteToTime(window.startMinute)}
+          onChange={(event) => update(index, "startMinute", event.target.value)}
+          className="h-10 min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+        />
+        <span className="text-muted-foreground text-sm">–</span>
+        <input
+          type="time"
+          step={900}
+          value={minuteToTime(window.endMinute)}
+          onChange={(event) => update(index, "endMinute", event.target.value)}
+          className="h-10 min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+        />
+        <button
+          type="button"
+          onClick={() => remove(index)}
+          className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground outline-none hover:bg-destructive/10 hover:text-destructive focus-visible:ring-3 focus-visible:ring-ring/30"
+          aria-label={copy.removeHours}
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <section
       id="availability-editor"
       className="rounded-3xl border border-border bg-card p-5 shadow-[0_28px_70px_-48px_oklch(0.23_0.035_151/0.45)] sm:p-8"
     >
-      <div className="flex items-start justify-between gap-5 pr-36 sm:pr-44">
+      <div className="flex items-start justify-between gap-5 pr-20 sm:pr-0">
         <div>
           <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
             {copy.title}
@@ -529,9 +526,12 @@ export function AvailabilityEditor({
           <p className="mt-2 max-w-2xl text-muted-foreground">
             {copy.description}
           </p>
-          <p className="mt-2 flex items-center gap-2 text-muted-foreground text-sm">
-            <Clock3 aria-hidden="true" className="size-4" />
-            {copy.timeZoneOnly} <strong>{timeZone.replaceAll("_", " ")}</strong>
+          <p className="mt-2 flex items-start gap-2 text-muted-foreground text-sm">
+            <Clock3 aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>
+              {copy.timeZoneOnly}{" "}
+              <strong>{timeZone.replaceAll("_", " ")}</strong>
+            </span>
           </p>
         </div>
         <Button
@@ -545,612 +545,305 @@ export function AvailabilityEditor({
         </Button>
       </div>
 
-      <div className="mt-7 rounded-2xl bg-muted/65 p-4 sm:flex sm:items-end sm:justify-between sm:gap-6">
-        <div>
-          <label
-            htmlFor="default-availability-duration"
-            className="font-semibold text-sm"
-          >
-            {copy.defaultDuration}
-          </label>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {durationPresets.map((minutes) => (
-              <Button
-                key={minutes}
-                type="button"
-                size="sm"
-                variant={defaultDuration === minutes ? "default" : "outline"}
-                onClick={() => setDefaultDuration(minutes)}
-              >
-                {minutes} min
-              </Button>
-            ))}
-            <div className="flex items-center gap-2">
-              <input
-                id="default-availability-duration"
-                type="number"
-                min={1}
-                max={1440}
-                value={defaultDuration}
-                onChange={(event) =>
-                  setDefaultDuration(Number(event.target.value))
-                }
-                className="h-9 w-24 rounded-xl border border-input bg-background px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-              />
-              <span className="text-muted-foreground text-sm">
-                {copy.minutes}
-              </span>
-            </div>
-          </div>
-          {defaultDuration === 1440 ? (
-            <p className="mt-2 max-w-xl text-amber-700 text-sm">
-              {copy.fullDayWarning}
-            </p>
-          ) : null}
-        </div>
-        <Button
-          type="button"
-          className="mt-3 sm:mt-0"
-          disabled={
-            isSavingDefault ||
-            defaultDuration < 1 ||
-            defaultDuration > 1440 ||
-            !Number.isInteger(defaultDuration) ||
-            defaultDuration === initial.defaultDurationMinutes
-          }
-          onClick={saveDefaultDuration}
-        >
-          <Settings2 aria-hidden="true" />
-          {isSavingDefault ? copy.saving : copy.saveDefault}
-        </Button>
-      </div>
-
       <div className="mt-7 flex gap-2 border-border border-b" role="tablist">
         <button
           type="button"
           role="tab"
-          aria-selected={tab === "weekly"}
-          onClick={() => setTab("weekly")}
+          aria-selected={tab === "regular"}
+          onClick={() => setTab("regular")}
           className="border-transparent border-b-2 px-4 py-3 font-semibold text-sm aria-selected:border-primary aria-selected:text-primary"
         >
-          <CalendarRange aria-hidden="true" className="mr-2 inline size-4" />
-          {copy.weeklyTab}
+          <Clock3 aria-hidden="true" className="mr-2 inline size-4" />
+          {copy.regularTab}
         </button>
         <button
           type="button"
           role="tab"
-          aria-selected={tab === "manual"}
-          onClick={() => setTab("manual")}
+          aria-selected={tab === "exceptions"}
+          onClick={() => setTab("exceptions")}
           className="border-transparent border-b-2 px-4 py-3 font-semibold text-sm aria-selected:border-primary aria-selected:text-primary"
         >
-          <Plus aria-hidden="true" className="mr-2 inline size-4" />
-          {copy.manualTab}
+          <CalendarRange aria-hidden="true" className="mr-2 inline size-4" />
+          {copy.exceptionsTab}
         </button>
       </div>
 
-      {tab === "weekly" ? (
+      {tab === "regular" ? (
         <div className="mt-7">
-          <h3 className="font-heading font-semibold text-2xl tracking-[-0.035em]">
-            {copy.weeklyTitle}
-          </h3>
-          <p className="mt-2 max-w-3xl text-muted-foreground text-sm">
-            {copy.weeklyDescription}
-          </p>
-
-          <div className="mt-6 grid gap-4 rounded-2xl border border-border bg-background p-4 lg:grid-cols-3">
-            <label className="text-sm">
-              <span className="font-semibold">{copy.startDate}</span>
-              <input
-                type="date"
-                min={initial.localToday}
-                max="2099-12-31"
-                value={startDate}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setStartDate(next);
-                  const maximum = addLocalDays(next, 364);
-                  if (endDate < next) {
-                    setEndDate(next);
-                  } else if (endDate > maximum) {
-                    setEndDate(maximum);
-                  }
-                }}
-                className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="font-semibold">{copy.endDate}</span>
-              <input
-                type="date"
-                min={startDate}
-                max={addLocalDays(startDate, 364)}
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-              />
-            </label>
-            <div className="text-sm">
-              <span className="font-semibold">{copy.durationForRun}</span>
-              <div className="mt-2 flex items-center gap-2">
-                <select
-                  value={
-                    durationPresets.includes(
-                      duration as (typeof durationPresets)[number],
-                    )
-                      ? duration
-                      : "custom"
-                  }
-                  onChange={(event) => {
-                    if (event.target.value !== "custom") {
-                      setPresetDuration(Number(event.target.value));
-                    }
-                  }}
-                  className="h-11 rounded-xl border border-input bg-card px-3 outline-none focus:border-ring"
-                >
-                  {durationPresets.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes} min
-                    </option>
-                  ))}
-                  <option value="custom">{copy.customDuration}</option>
-                </select>
-                <input
-                  type="number"
-                  min={1}
-                  max={1440}
-                  value={duration}
-                  onChange={(event) => setDuration(Number(event.target.value))}
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-card px-3 outline-none focus:border-ring"
-                  aria-label={copy.durationForRun}
-                />
-              </div>
-            </div>
-          </div>
-
-          {duration === 1440 ? (
-            <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-800 text-sm">
-              {copy.fullDayWarning}
-            </p>
-          ) : null}
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-2xl text-muted-foreground text-sm">
-              {copy.drawHint}
-            </p>
-            <div className="flex shrink-0 items-center gap-2">
-              {ranges.length > 0 ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setRanges([])}
-                >
-                  {copy.clearWeek}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                aria-haspopup="dialog"
-                aria-expanded={exactDialogOpen}
-                onClick={() => {
-                  setExactInputInvalid(false);
-                  setExactDialogOpen(true);
-                }}
-              >
-                <Plus aria-hidden="true" />
-                {copy.addRange}
-              </Button>
-            </div>
-          </div>
-
-          <Dialog.Root
-            open={exactDialogOpen}
-            onOpenChange={(open) => {
-              setExactDialogOpen(open);
-              if (!open) {
-                setExactInputInvalid(false);
-              }
-            }}
-          >
-            <Dialog.Portal>
-              <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/30 backdrop-blur-[2px] transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
-              <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
-                <Dialog.Popup className="relative w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl outline-none transition-[transform,opacity] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 sm:p-7">
-                  <Dialog.Title className="pr-10 font-heading font-semibold text-2xl tracking-[-0.035em]">
-                    {copy.exactRangeTitle}
-                  </Dialog.Title>
-                  <Dialog.Description className="mt-2 pr-8 text-muted-foreground text-sm leading-relaxed">
-                    {copy.exactRangeDescription}
-                  </Dialog.Description>
-                  <Dialog.Close
-                    type="button"
-                    className="absolute top-5 right-5 grid size-9 place-items-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
-                    aria-label={copy.cancel}
-                  >
-                    <X aria-hidden="true" className="size-4" />
-                  </Dialog.Close>
-
-                  <form
-                    className="mt-6 grid gap-4"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      addExactRange();
-                    }}
-                  >
-                    <label className="text-sm">
-                      <span className="font-semibold">{copy.day}</span>
-                      <select
-                        value={exactInput.dayOfWeek}
-                        onChange={(event) => {
-                          setExactInputInvalid(false);
-                          setExactInput((current) => ({
-                            ...current,
-                            dayOfWeek: Number(event.target.value),
-                          }));
-                        }}
-                        className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-                      >
-                        {dayOrder.map((dayOfWeek, index) => (
-                          <option key={dayOfWeek} value={dayOfWeek}>
-                            {
-                              organizationCopy[lang].dashboard.weekdaysShort[
-                                index
-                              ]
-                            }
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="text-sm">
-                        <span className="font-semibold">{copy.startTime}</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={exactInput.start}
-                          onChange={(event) => {
-                            setExactInputInvalid(false);
-                            setExactInput((current) => ({
-                              ...current,
-                              start: event.target.value,
-                            }));
-                          }}
-                          className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20 aria-invalid:border-destructive"
-                          placeholder="09:00"
-                          aria-invalid={exactInputInvalid}
-                        />
-                      </label>
-                      <label className="text-sm">
-                        <span className="font-semibold">{copy.endTime}</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={exactInput.end}
-                          onChange={(event) => {
-                            setExactInputInvalid(false);
-                            setExactInput((current) => ({
-                              ...current,
-                              end: event.target.value,
-                            }));
-                          }}
-                          className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20 aria-invalid:border-destructive"
-                          placeholder="17:00"
-                          aria-invalid={exactInputInvalid}
-                        />
-                      </label>
-                    </div>
-                    {exactInputInvalid ? (
-                      <p role="alert" className="text-destructive text-sm">
-                        {copy.exactRangeError}
-                      </p>
-                    ) : null}
-                    <div className="mt-1 flex justify-end gap-2">
-                      <Dialog.Close
-                        type="button"
-                        className="inline-flex h-10 items-center justify-center rounded-full px-4 font-medium text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30"
-                      >
-                        {copy.cancel}
-                      </Dialog.Close>
-                      <Button type="submit" size="lg">
-                        <Plus aria-hidden="true" />
-                        {copy.addRange}
-                      </Button>
-                    </div>
-                  </form>
-                </Dialog.Popup>
-              </Dialog.Viewport>
-            </Dialog.Portal>
-          </Dialog.Root>
-
-          <div className="mt-3 overflow-x-auto rounded-2xl border border-border bg-background">
-            <div className="min-w-[720px] p-4">
-              <div className="grid grid-cols-[52px_repeat(7,minmax(82px,1fr))]">
-                <span className="self-end pb-3 text-muted-foreground text-[0.65rem] uppercase tracking-[0.08em]">
-                  {copy.timeAxis}
-                </span>
-                {dayOrder.map((dayOfWeek, dayIndex) => {
-                  const periodCount = generated.filter(
-                    (period) => period.dayOfWeek === dayOfWeek,
-                  ).length;
-                  return (
-                    <div
-                      key={dayOfWeek}
-                      className="flex min-w-0 items-center justify-center gap-1.5 px-1 pb-3 text-center"
-                    >
-                      <span className="truncate font-semibold text-sm">
-                        {
-                          organizationCopy[lang].dashboard.weekdaysShort[
-                            dayIndex
-                          ]
-                        }
-                      </span>
-                      {periodCount > 0 ? (
-                        <span className="rounded-full bg-accent px-1.5 py-0.5 font-semibold text-[0.65rem] text-primary tabular-nums">
-                          {periodCount}
-                        </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-[52px_repeat(7,minmax(82px,1fr))]">
-                <div className="relative h-[576px] border-border border-r text-muted-foreground text-[0.65rem] tabular-nums">
-                  {[0, 360, 720, 1080, 1440].map((minute) => (
-                    <span
-                      key={minute}
-                      className={`absolute right-2 ${
-                        minute === 0
-                          ? "top-0"
-                          : minute === 1440
-                            ? "-translate-y-full"
-                            : "-translate-y-1/2"
-                      }`}
-                      style={{ top: `${(minute / 1440) * 100}%` }}
-                    >
-                      {minuteToTime(minute)}
-                    </span>
-                  ))}
-                </div>
-
-                {dayOrder.map((dayOfWeek) => {
-                  const dayGenerated = generated.filter(
-                    (period) => period.dayOfWeek === dayOfWeek,
-                  );
-                  return (
-                    <div
-                      key={dayOfWeek}
-                      className="relative h-[576px] overflow-hidden border-border border-r bg-muted/35 last:rounded-r-xl"
-                    >
-                      <div className="absolute inset-0 grid touch-none grid-rows-[repeat(96,minmax(0,1fr))] select-none">
-                        {timelineSlots.map((slot) => (
-                          <span
-                            key={slot}
-                            onPointerDown={(event: ReactPointerEvent) => {
-                              if (event.button !== 0) {
-                                return;
-                              }
-                              event.preventDefault();
-                              setDrag({
-                                dayOfWeek,
-                                startSlot: slot,
-                                currentSlot: slot,
-                              });
-                            }}
-                            onPointerEnter={() => {
-                              if (drag?.dayOfWeek === dayOfWeek) {
-                                setDrag({ ...drag, currentSlot: slot });
-                              }
-                            }}
-                            className={`cursor-crosshair border-b outline-none ${
-                              (slot + 1) % 4 === 0
-                                ? "border-border/70"
-                                : "border-border/25"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      {dayGenerated.map((period) => (
-                        <span
-                          key={`${period.startMinute}-${period.endMinute}`}
-                          aria-hidden="true"
-                          className="pointer-events-none absolute right-1 left-1 rounded-md bg-primary/85 ring-1 ring-primary-foreground/40"
-                          style={{
-                            top: `${(period.startMinute / 1440) * 100}%`,
-                            height: `${((period.endMinute - period.startMinute) / 1440) * 100}%`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-accent p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="font-semibold">
-                {copy.periodsPreview(generated.length)}
-              </p>
-              <p className="mt-1 text-muted-foreground text-sm">
-                {copy.bulkPreview(bulkCount)}
+              <h3 className="font-heading font-semibold text-2xl tracking-[-0.035em]">
+                {copy.regularTitle}
+              </h3>
+              <p className="mt-2 text-muted-foreground text-sm">
+                {copy.regularDescription}
               </p>
             </div>
+            <span className="w-fit rounded-full bg-accent px-3 py-1.5 font-semibold text-primary text-xs">
+              {openDayCount}/7 {copy.open.toLowerCase()}
+            </span>
+          </div>
+
+          <div className="mt-5 flex gap-3 rounded-2xl bg-accent/70 p-4 text-primary text-sm">
+            <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <p>{copy.serviceFit}</p>
+          </div>
+
+          <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-background">
+            {dayOrder.map((dayOfWeek, dayIndex) => {
+              const dayWindows = weeklyHours.filter(
+                (window) => window.dayOfWeek === dayOfWeek,
+              );
+              const isOpen = dayWindows.length > 0;
+              return (
+                <div
+                  key={dayOfWeek}
+                  className="grid gap-3 border-border border-b p-4 last:border-b-0 md:grid-cols-[160px_1fr_auto] md:items-start"
+                >
+                  <div className="flex items-center gap-3 pt-1.5">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isOpen}
+                      onClick={() => toggleDay(dayOfWeek)}
+                      className={`relative h-6 w-11 rounded-full outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/30 ${
+                        isOpen ? "bg-primary" : "bg-muted-foreground/25"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${
+                          isOpen ? "translate-x-5" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                    <span className="font-semibold capitalize">
+                      {dayLabel(dayIndex, lang)}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-2">
+                    {isOpen ? (
+                      dayWindows.map((window, index) =>
+                        renderTimeWindow(
+                          window,
+                          index,
+                          (windowIndex, field, value) =>
+                            updateWeeklyWindow(
+                              dayOfWeek,
+                              windowIndex,
+                              field,
+                              value,
+                            ),
+                          (windowIndex) =>
+                            removeWeeklyWindow(dayOfWeek, windowIndex),
+                        ),
+                      )
+                    ) : (
+                      <p className="py-2 text-muted-foreground text-sm">
+                        {copy.closed}
+                      </p>
+                    )}
+                  </div>
+
+                  {isOpen ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => addWeeklyWindow(dayOfWeek)}
+                    >
+                      <Plus aria-hidden="true" />
+                      {copy.addHours}
+                    </Button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 flex justify-end">
             <Button
               type="button"
               size="lg"
-              disabled={isApplying || bulkCount === 0 || bulkCount > 1000}
-              onClick={applyWeekly}
+              disabled={regularInvalid || isSavingRegular}
+              onClick={saveRegularHours}
             >
               <Check aria-hidden="true" />
-              {isApplying ? copy.applyingWeekly : copy.applyWeekly}
+              {isSavingRegular ? copy.saving : copy.saveRegular}
             </Button>
           </div>
         </div>
       ) : (
         <div className="mt-7">
           <h3 className="font-heading font-semibold text-2xl tracking-[-0.035em]">
-            {copy.manualTitle}
+            {copy.exceptionsTitle}
           </h3>
-          <p className="mt-2 text-muted-foreground text-sm">
-            {copy.manualDescription}
+          <p className="mt-2 max-w-3xl text-muted-foreground text-sm">
+            {copy.exceptionsDescription}
           </p>
 
-          <div className="mt-6 grid gap-4 rounded-2xl border border-border bg-background p-4 md:grid-cols-4">
-            <label className="text-sm">
+          <div className="mt-6 rounded-2xl border border-border bg-background p-4 sm:p-5">
+            <label className="block max-w-xs text-sm">
               <span className="font-semibold">{copy.date}</span>
               <input
                 type="date"
                 min={initial.localToday}
                 max="2099-12-31"
-                value={manualDate}
-                onChange={(event) => setManualDate(event.target.value)}
-                className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="font-semibold">{copy.periodStart}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={manualStart}
+                value={exceptionDate}
+                disabled={editingDate !== undefined}
                 onChange={(event) => {
-                  setManualStart(event.target.value);
-                  const start = timeToMinute(event.target.value);
-                  if (start !== undefined && start < 1440) {
-                    setManualEnd(
-                      minuteToTime(Math.min(start + defaultDuration, 1440)),
+                  const date = event.target.value;
+                  setExceptionDate(date);
+                  const existing = exceptions.find(
+                    (exception) => exception.date === date,
+                  );
+                  if (existing) {
+                    setEditingDate(existing.date);
+                    setExceptionMode(
+                      existing.windows.length === 0 ? "closed" : "custom",
+                    );
+                    setExceptionWindows([...existing.windows]);
+                    return;
+                  }
+
+                  setEditingDate(undefined);
+                  if (exceptionMode === "custom") {
+                    const regular = regularHoursForDate(date, weeklyHours);
+                    setExceptionWindows(
+                      regular.length > 0
+                        ? regular
+                        : [{ startMinute: 9 * 60, endMinute: 17 * 60 }],
                     );
                   }
                 }}
-                className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3"
-                placeholder="09:00"
+                className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20 disabled:opacity-60"
               />
             </label>
-            <label className="text-sm">
-              <span className="font-semibold">{copy.periodEnd}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={manualEnd}
-                onChange={(event) => setManualEnd(event.target.value)}
-                className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3"
-                placeholder="09:30"
-              />
-            </label>
-            <div className="flex items-end gap-2">
+
+            <div className="mt-5 flex flex-wrap gap-2">
               <Button
                 type="button"
-                className="h-11 flex-1"
-                disabled={isSavingPeriod}
-                onClick={saveManualPeriod}
+                variant={exceptionMode === "closed" ? "default" : "outline"}
+                onClick={() => selectExceptionMode("closed")}
               >
-                {editingId ? copy.updatePeriod : copy.addPeriod}
+                {copy.closedAllDay}
               </Button>
-              {editingId ? (
+              <Button
+                type="button"
+                variant={exceptionMode === "custom" ? "default" : "outline"}
+                onClick={() => selectExceptionMode("custom")}
+              >
+                {copy.differentHours}
+              </Button>
+            </div>
+
+            {exceptionMode === "custom" ? (
+              <div className="mt-5 max-w-lg space-y-2">
+                {exceptionWindows.map((window, index) =>
+                  renderTimeWindow(
+                    window,
+                    index,
+                    updateExceptionWindow,
+                    (windowIndex) =>
+                      setExceptionWindows((current) =>
+                        current.filter((_, index) => index !== windowIndex),
+                      ),
+                  ),
+                )}
                 <Button
                   type="button"
                   variant="ghost"
-                  className="h-11"
-                  onClick={resetManualForm}
+                  size="sm"
+                  onClick={() =>
+                    setExceptionWindows((current) => [
+                      ...current,
+                      newWindowAfter(current),
+                    ])
+                  }
                 >
-                  {copy.cancelEdit}
+                  <Plus aria-hidden="true" />
+                  {copy.addHours}
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              {editingDate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => resetExceptionForm()}
+                >
+                  {copy.cancel}
                 </Button>
               ) : null}
+              <Button
+                type="button"
+                disabled={exceptionInvalid || isSavingException}
+                onClick={saveException}
+              >
+                <Check aria-hidden="true" />
+                {isSavingException
+                  ? copy.saving
+                  : editingDate
+                    ? copy.updateException
+                    : copy.addException}
+              </Button>
             </div>
           </div>
-          {manualDuration !== undefined &&
-          manualDuration !== defaultDuration ? (
-            <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-amber-800 text-sm">
-              {copy.longPeriod(formatDuration(manualDuration, lang))}
-            </p>
-          ) : null}
 
-          <div className="mt-7 flex items-center justify-between gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => loadWeek(addLocalDays(week.rangeFrom, -7))}
-              disabled={week.rangeFrom <= initial.localToday}
-            >
-              <ChevronLeft aria-hidden="true" />
-              {copy.previousWeek}
-            </Button>
-            <p className="font-semibold text-sm">
-              {dateLabel(week.rangeFrom, lang)} –{" "}
-              {dateLabel(week.rangeTo, lang)}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => loadWeek(addLocalDays(week.rangeFrom, 7))}
-            >
-              {copy.nextWeek}
-              <ChevronRight aria-hidden="true" />
-            </Button>
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-            {Array.from({ length: 7 }, (_, index) => {
-              const date = addLocalDays(week.rangeFrom, index);
-              const periods = week.periods.filter(
-                (period) => period.date === date,
-              );
-              return (
-                <article
-                  key={date}
-                  className="rounded-2xl border border-border bg-background p-3"
-                >
-                  <p className="font-semibold text-sm">
-                    {dateLabel(date, lang, { weekday: "short" })}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {dateLabel(date, lang)}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {periods.length === 0 ? (
-                      <p className="text-muted-foreground text-xs">
-                        {copy.noPeriodsDay}
-                      </p>
-                    ) : (
-                      periods.map((period) => (
-                        <div
-                          key={period.id}
-                          className="rounded-xl bg-accent p-2"
-                        >
-                          <p className="font-semibold text-xs">
-                            {minuteToTime(period.startMinute)}–
-                            {minuteToTime(period.endMinute)}
-                          </p>
-                          <div className="mt-1 flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => editPeriod(period)}
-                              className="text-primary text-xs hover:underline"
-                            >
-                              {copy.edit}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removePeriod(period)}
-                              className="ml-auto text-destructive"
-                              aria-label={copy.remove}
-                            >
-                              <Trash2 aria-hidden="true" className="size-3" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
+          <div className="mt-8">
+            <h4 className="font-heading font-semibold text-lg">
+              {copy.upcomingExceptions}
+            </h4>
+            {exceptions.length === 0 ? (
+              <p className="mt-3 rounded-2xl bg-muted/60 p-4 text-muted-foreground text-sm">
+                {copy.noExceptions}
+              </p>
+            ) : (
+              <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-background">
+                {exceptions.map((exception) => (
+                  <div
+                    key={exception.id}
+                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
+                  >
+                    <p className="min-w-44 font-semibold capitalize">
+                      {dateLabel(exception.date, lang)}
+                    </p>
+                    <p className="flex-1 text-muted-foreground text-sm">
+                      {exception.windows.length === 0
+                        ? copy.exceptionClosed
+                        : exception.windows
+                            .map(
+                              (window) =>
+                                `${minuteToTime(window.startMinute)}–${minuteToTime(window.endMinute)}`,
+                            )
+                            .join(", ")}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => editException(exception)}
+                      >
+                        {copy.edit}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeException(exception)}
+                        aria-label={copy.remove}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </div>
                   </div>
-                </article>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1163,11 +856,7 @@ export function AvailabilityEditor({
           >
             {error === "INVALID_INPUT"
               ? copy.errors.invalid
-              : error === "CONFLICT"
-                ? copy.errors.conflict
-                : error === "BULK_LIMIT"
-                  ? copy.errors.bulkLimit
-                  : copy.errors.unavailable}
+              : copy.errors.unavailable}
           </p>
         ) : message ? (
           <output className="rounded-xl bg-accent px-4 py-3 text-primary text-sm">

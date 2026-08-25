@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { organizationCopy } from "#/content/organization";
+import { resolveUiLocale } from "#/shared/i18n";
 
 export const Route = createFileRoute("/terms")({
   head: ({ match }) => {
-    const copy = organizationCopy[match.search.lang].terms;
+    const copy = organizationCopy[resolveUiLocale(match.search.lang)].terms;
 
     return {
       meta: [
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/terms")({
 });
 
 function TermsPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const copy = organizationCopy[lang].terms;
 
   return (

@@ -2,52 +2,32 @@ import { Context, type Effect } from "effect";
 
 import type { OrganizationId } from "#/contexts/organizations/slices/setup-organization/contract";
 import type {
-  AvailabilityConflict,
   AvailabilityNotFound,
-  AvailabilityOverview,
-  AvailabilityPeriod,
   AvailabilityUnavailable,
-  DatedAvailabilityPeriod,
+  BookingHoursConfiguration,
+  BookingHoursDateException,
+  TimeWindow,
+  WeeklyBookingHoursWindow,
 } from "./contract";
 
-type GatewayError =
-  | AvailabilityConflict
-  | AvailabilityNotFound
-  | AvailabilityUnavailable;
-
 export interface AvailabilityGatewayService {
-  readonly getOverview: (input: {
-    readonly organizationId: OrganizationId;
-    readonly today: string;
-    readonly currentMinute: number;
-    readonly from: string;
-    readonly to: string;
-  }) => Effect.Effect<AvailabilityOverview, AvailabilityUnavailable>;
-  readonly updateDefaultDuration: (input: {
-    readonly organizationId: OrganizationId;
-    readonly minutes: number;
-  }) => Effect.Effect<void, AvailabilityUnavailable>;
-  readonly replaceRange: (input: {
+  readonly getConfiguration: (input: {
     readonly organizationId: OrganizationId;
     readonly from: string;
     readonly to: string;
-    readonly periods: ReadonlyArray<DatedAvailabilityPeriod>;
+  }) => Effect.Effect<BookingHoursConfiguration, AvailabilityUnavailable>;
+  readonly replaceWeeklyHours: (input: {
+    readonly organizationId: OrganizationId;
+    readonly windows: ReadonlyArray<WeeklyBookingHoursWindow>;
   }) => Effect.Effect<void, AvailabilityUnavailable>;
-  readonly createPeriod: (input: {
+  readonly upsertDateException: (input: {
     readonly organizationId: OrganizationId;
-    readonly period: DatedAvailabilityPeriod;
-  }) => Effect.Effect<
-    AvailabilityPeriod,
-    AvailabilityConflict | AvailabilityUnavailable
-  >;
-  readonly updatePeriod: (input: {
+    readonly date: string;
+    readonly windows: ReadonlyArray<TimeWindow>;
+  }) => Effect.Effect<BookingHoursDateException, AvailabilityUnavailable>;
+  readonly deleteDateException: (input: {
     readonly organizationId: OrganizationId;
-    readonly id: string;
-    readonly period: DatedAvailabilityPeriod;
-  }) => Effect.Effect<AvailabilityPeriod, GatewayError>;
-  readonly deletePeriod: (input: {
-    readonly organizationId: OrganizationId;
-    readonly id: string;
+    readonly date: string;
   }) => Effect.Effect<void, AvailabilityNotFound | AvailabilityUnavailable>;
 }
 

@@ -70,11 +70,6 @@ export const organization = pgTable("organization", {
   id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
   name: text("name").notNull(),
   timeZone: text("time_zone").notNull(),
-  defaultAvailabilityPeriodMinutes: integer(
-    "default_availability_period_minutes",
-  )
-    .default(30)
-    .notNull(),
   availabilityConfiguredAt: timestamp("availability_configured_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -83,14 +78,14 @@ export const organization = pgTable("organization", {
     .notNull(),
 });
 
-export const availability_period = pgTable(
-  "availability_period",
+export const booking_hours_window = pgTable(
+  "booking_hours_window",
   {
     id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    date: date("date", { mode: "string" }).notNull(),
+    dayOfWeek: integer("day_of_week").notNull(),
     startMinute: integer("start_minute").notNull(),
     endMinute: integer("end_minute").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -100,25 +95,93 @@ export const availability_period = pgTable(
       .notNull(),
   },
   (table) => [
-    index("availability_period_organization_date_idx").on(
+    index("booking_hours_window_organization_day_idx").on(
+      table.organizationId,
+      table.dayOfWeek,
+    ),
+    check(
+      "booking_hours_window_day_of_week_check",
+      sql`${table.dayOfWeek} >= 0 AND ${table.dayOfWeek} <= 6`,
+    ),
+    check(
+      "booking_hours_window_start_minute_check",
+      sql`${table.startMinute} >= 0 AND ${table.startMinute} < 1440`,
+    ),
+    check(
+      "booking_hours_window_end_minute_check",
+      sql`${table.endMinute} > 0 AND ${table.endMinute} <= 1440`,
+    ),
+    check(
+      "booking_hours_window_order_check",
+      sql`${table.startMinute} < ${table.endMinute}`,
+    ),
+    uniqueIndex("booking_hours_window_unique").on(
+      table.organizationId,
+      table.dayOfWeek,
+      table.startMinute,
+      table.endMinute,
+    ),
+  ],
+);
+
+export const booking_hours_date_exception = pgTable(
+  "booking_hours_date_exception",
+  {
+    id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    date: date("date", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("booking_hours_date_exception_organization_date_uidx").on(
       table.organizationId,
       table.date,
     ),
     check(
-      "availability_period_start_minute_check",
+      "booking_hours_date_exception_date_limit_check",
+      sql`${table.date} <= DATE '2099-12-31'`,
+    ),
+  ],
+);
+
+export const booking_hours_date_exception_window = pgTable(
+  "booking_hours_date_exception_window",
+  {
+    id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+    exceptionId: uuid("exception_id")
+      .notNull()
+      .references(() => booking_hours_date_exception.id, {
+        onDelete: "cascade",
+      }),
+    startMinute: integer("start_minute").notNull(),
+    endMinute: integer("end_minute").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("booking_hours_date_exception_window_exception_idx").on(
+      table.exceptionId,
+    ),
+    check(
+      "booking_hours_date_exception_window_start_minute_check",
       sql`${table.startMinute} >= 0 AND ${table.startMinute} < 1440`,
     ),
     check(
-      "availability_period_end_minute_check",
+      "booking_hours_date_exception_window_end_minute_check",
       sql`${table.endMinute} > 0 AND ${table.endMinute} <= 1440`,
     ),
     check(
-      "availability_period_order_check",
+      "booking_hours_date_exception_window_order_check",
       sql`${table.startMinute} < ${table.endMinute}`,
-    ),
-    check(
-      "availability_period_date_limit_check",
-      sql`${table.date} <= DATE '2099-12-31'`,
     ),
   ],
 );
@@ -161,15 +224,37 @@ export const identity_sessionRelations = relations(
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   memberships: many(organization_membership),
-  availabilityPeriods: many(availability_period),
+  bookingHoursWindows: many(booking_hours_window),
+  bookingHoursDateExceptions: many(booking_hours_date_exception),
 }));
 
-export const availability_periodRelations = relations(
-  availability_period,
+export const booking_hours_windowRelations = relations(
+  booking_hours_window,
   ({ one }) => ({
     organization: one(organization, {
-      fields: [availability_period.organizationId],
+      fields: [booking_hours_window.organizationId],
       references: [organization.id],
+    }),
+  }),
+);
+
+export const booking_hours_date_exceptionRelations = relations(
+  booking_hours_date_exception,
+  ({ many, one }) => ({
+    organization: one(organization, {
+      fields: [booking_hours_date_exception.organizationId],
+      references: [organization.id],
+    }),
+    windows: many(booking_hours_date_exception_window),
+  }),
+);
+
+export const booking_hours_date_exception_windowRelations = relations(
+  booking_hours_date_exception_window,
+  ({ one }) => ({
+    exception: one(booking_hours_date_exception, {
+      fields: [booking_hours_date_exception_window.exceptionId],
+      references: [booking_hours_date_exception.id],
     }),
   }),
 );

@@ -9,6 +9,7 @@ import {
   requestLoginCodeFn,
 } from "#/contexts/identity/slices/login/functions";
 import { getOrganizationContextFn } from "#/contexts/organizations/slices/setup-organization/functions";
+import { resolveUiLocale } from "#/shared/i18n";
 
 export const Route = createFileRoute("/login")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/login")({
     return { unavailable: state.status === "unavailable" };
   },
   head: ({ match }) => {
-    const copy = loginCopy[match.search.lang];
+    const copy = loginCopy[resolveUiLocale(match.search.lang)];
 
     return {
       meta: [
@@ -47,7 +48,7 @@ type LoginError =
   | "UNAVAILABLE";
 
 function LoginPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const { unavailable } = Route.useLoaderData();
   const copy = loginCopy[lang];
   const navigate = useNavigate();

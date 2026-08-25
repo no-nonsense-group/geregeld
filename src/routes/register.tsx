@@ -8,10 +8,11 @@ import {
   completeRegistrationFn,
   requestRegistrationCodeFn,
 } from "#/contexts/identity/slices/register/functions";
+import { resolveUiLocale } from "#/shared/i18n";
 
 export const Route = createFileRoute("/register")({
   head: ({ match }) => {
-    const copy = registrationCopy[match.search.lang];
+    const copy = registrationCopy[resolveUiLocale(match.search.lang)];
 
     return {
       meta: [
@@ -32,7 +33,7 @@ type RegistrationError =
   | "UNAVAILABLE";
 
 function RegistrationPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const copy = registrationCopy[lang];
   const navigate = useNavigate();
   const codeInput = useRef<HTMLInputElement>(null);

@@ -5,6 +5,7 @@ import { type SubmitEvent, useEffect, useState } from "react";
 import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
 import { setupOrganizationFn } from "#/contexts/organizations/slices/setup-organization/functions";
+import { resolveUiLocale } from "#/shared/i18n";
 
 const fallbackTimeZones = ["Europe/Amsterdam", "Europe/London", "UTC"];
 const timeZones =
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/setup")({
     return { unavailable: state.status === "unavailable" };
   },
   head: ({ match }) => {
-    const copy = organizationCopy[match.search.lang].setup;
+    const copy = organizationCopy[resolveUiLocale(match.search.lang)].setup;
 
     return {
       meta: [
@@ -41,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/setup")({
 type SetupError = "INVALID_INPUT" | "UNAVAILABLE";
 
 function SetupPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const { unavailable } = Route.useLoaderData();
   const copy = organizationCopy[lang].setup;
   const navigate = useNavigate();

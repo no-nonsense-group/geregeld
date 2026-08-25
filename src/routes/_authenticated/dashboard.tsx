@@ -6,7 +6,7 @@ import { AvailabilityEditor } from "#/components/availability-editor";
 import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
 import { getAvailabilityFn } from "#/contexts/availability/slices/manage-availability/functions";
-import { addLocalDays } from "#/contexts/availability/slices/manage-availability/local-date";
+import { resolveUiLocale } from "#/shared/i18n";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
     };
   },
   head: ({ match }) => {
-    const copy = organizationCopy[match.search.lang].dashboard;
+    const copy = organizationCopy[resolveUiLocale(match.search.lang)].dashboard;
 
     return {
       meta: [
@@ -46,12 +46,14 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function DashboardPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const { organization, availability, unavailable } = Route.useLoaderData();
   const allCopy = organizationCopy[lang];
   const copy = allCopy.dashboard;
   const router = useRouter();
   const [editorOpen, setEditorOpen] = useState(false);
+  const weekDays = availability?.days.slice(0, 7) ?? [];
+  const openDayCount = weekDays.filter((day) => day.windows.length > 0).length;
 
   if (unavailable || !organization) {
     return (
@@ -103,14 +105,14 @@ function DashboardPage() {
             <p className="mt-8 font-heading font-semibold text-3xl tracking-[-0.04em]">
               {!availability?.configured
                 ? copy.availabilityValue
-                : availability.totalFuturePeriods === 0
+                : openDayCount === 0
                   ? copy.availabilityNoUpcoming
-                  : copy.availabilityConfigured}
+                  : copy.availabilityConfigured(openDayCount)}
             </p>
             <p className="mt-2 text-muted-foreground text-sm">
               {!availability?.configured
                 ? copy.availabilityEmpty
-                : copy.availabilityPeriods(availability.periods.length)}
+                : copy.availabilitySchedule}
             </p>
 
             {availability ? (
@@ -119,31 +121,34 @@ function DashboardPage() {
                   {copy.weekOverview}
                 </p>
                 <div className="mt-3 grid grid-cols-7 gap-1.5">
-                  {Array.from({ length: 7 }, (_, index) => {
-                    const date = addLocalDays(availability.rangeFrom, index);
-                    const count = availability.periods.filter(
-                      (period) => period.date === date,
-                    ).length;
+                  {weekDays.map((day, index) => {
                     return (
                       <div
-                        key={date}
-                        className="rounded-xl bg-muted px-1 py-2 text-center"
-                        title={date}
+                        key={day.date}
+                        className={`rounded-xl px-1 py-2 text-center ${
+                          day.source === "exception"
+                            ? "bg-accent ring-1 ring-primary/20"
+                            : "bg-muted"
+                        }`}
+                        title={day.date}
                       >
                         <span className="block text-muted-foreground text-[0.65rem] uppercase">
                           {copy.weekdaysShort[index]}
                         </span>
-                        <span className="mt-1 block font-semibold text-sm">
-                          {count}
+                        <span className="mt-1 block truncate font-semibold text-[0.7rem]">
+                          {day.windows.length === 0
+                            ? "—"
+                            : day.windows
+                                .map(
+                                  (window) =>
+                                    `${String(Math.floor(window.startMinute / 60)).padStart(2, "0")}:${String(window.startMinute % 60).padStart(2, "0")}–${String(Math.floor(window.endMinute / 60)).padStart(2, "0")}:${String(window.endMinute % 60).padStart(2, "0")}`,
+                                )
+                                .join(", ")}
                         </span>
                       </div>
                     );
                   })}
                 </div>
-                <p className="mt-4 text-muted-foreground text-sm">
-                  {copy.defaultPeriod}: {availability.defaultDurationMinutes}{" "}
-                  min
-                </p>
               </div>
             ) : null}
 

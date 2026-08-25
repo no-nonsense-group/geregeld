@@ -1,5 +1,4 @@
 import { useLocation } from "@tanstack/react-router";
-import { useEffect } from "react";
 
 import { type UiLocale, uiLocaleStorageKey, uiLocales } from "#/shared/i18n";
 
@@ -29,10 +28,6 @@ function storeLocalePreference(locale: UiLocale) {
 
 export function LanguagePicker({ locale }: { locale: UiLocale }) {
   const location = useLocation();
-
-  useEffect(() => {
-    storeLocalePreference(locale);
-  }, [locale]);
 
   function hrefFor(nextLocale: UiLocale): string {
     const search = new URLSearchParams(location.searchStr);

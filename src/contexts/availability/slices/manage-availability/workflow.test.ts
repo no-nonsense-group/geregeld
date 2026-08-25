@@ -1,24 +1,20 @@
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+
 import {
   IanaTimeZone,
   OrganizationId,
 } from "#/contexts/organizations/slices/setup-organization/contract";
-import {
-  AvailabilityBulkLimitExceeded,
-  AvailabilityConflict,
-  type AvailabilityOverview,
-  InvalidAvailabilityInput,
-} from "./contract";
+import { AvailabilityNotFound, InvalidAvailabilityInput } from "./contract";
 import {
   AvailabilityGateway,
   type AvailabilityGatewayService,
 } from "./gateway";
-import { localDateDayOfWeek } from "./local-date";
 import {
-  applyWeeklyAvailability,
-  createAvailabilityPeriod,
-  updateDefaultAvailabilityDuration,
+  deleteBookingHoursDateException,
+  getAvailabilityOverview,
+  replaceWeeklyBookingHours,
+  upsertBookingHoursDateException,
 } from "./workflow";
 
 const organizationId = OrganizationId.make("organization-1");
@@ -26,240 +22,217 @@ const timeZone = IanaTimeZone.make("Europe/Amsterdam");
 const now = new Date("2026-08-25T08:30:00.000Z");
 
 function makeGateway() {
-  const replacements: Array<unknown> = [];
-  const created: Array<unknown> = [];
-  const defaultDurations: Array<number> = [];
-  const overview: AvailabilityOverview = {
-    configured: false,
-    defaultDurationMinutes: 30,
-    localToday: "2026-08-25",
-    rangeFrom: "2026-08-24",
-    rangeTo: "2026-08-30",
-    totalFuturePeriods: 0,
-    periods: [],
+  const weeklyReplacements: Array<unknown> = [];
+  const exceptionUpserts: Array<unknown> = [];
+  const exceptionDeletes: Array<unknown> = [];
+  const configuration = {
+    configured: true,
+    weeklyHours: [
+      {
+        id: "weekly-1",
+        dayOfWeek: 2,
+        startMinute: 540,
+        endMinute: 1020,
+      },
+      {
+        id: "weekly-2",
+        dayOfWeek: 3,
+        startMinute: 540,
+        endMinute: 1020,
+      },
+    ],
+    dateExceptions: [{ id: "exception-1", date: "2026-08-26", windows: [] }],
   };
   const service: AvailabilityGatewayService = {
-    getOverview: () => Effect.succeed(overview),
-    updateDefaultDuration: ({ minutes }) =>
+    getConfiguration: () => Effect.succeed(configuration),
+    replaceWeeklyHours: (input) =>
       Effect.sync(() => {
-        defaultDurations.push(minutes);
+        weeklyReplacements.push(input);
       }),
-    replaceRange: (input) =>
+    upsertDateException: (input) =>
       Effect.sync(() => {
-        replacements.push(input);
+        exceptionUpserts.push(input);
+        return {
+          id: "exception-new",
+          date: input.date,
+          windows: input.windows,
+        };
       }),
-    createPeriod: (input) =>
+    deleteDateException: (input) =>
       Effect.sync(() => {
-        created.push(input);
-        return { id: "period-1", ...input.period };
+        exceptionDeletes.push(input);
       }),
-    updatePeriod: (input) => Effect.succeed({ id: input.id, ...input.period }),
-    deletePeriod: () => Effect.void,
   };
 
   return {
-    replacements,
-    created,
-    defaultDurations,
+    weeklyReplacements,
+    exceptionUpserts,
+    exceptionDeletes,
     service,
     layer: Layer.succeed(AvailabilityGateway, service),
   };
 }
 
+it.effect("keeps regular booking hours as continuous weekly windows", () => {
+  const gateway = makeGateway();
+
+  return Effect.gen(function* () {
+    yield* replaceWeeklyBookingHours(organizationId, {
+      windows: [
+        {
+          dayOfWeek: 1,
+          startMinute: 540,
+          endMinute: 1020,
+        },
+      ],
+    });
+
+    expect(gateway.weeklyReplacements).toEqual([
+      {
+        organizationId,
+        windows: [
+          {
+            dayOfWeek: 1,
+            startMinute: 540,
+            endMinute: 1020,
+          },
+        ],
+      },
+    ]);
+  }).pipe(Effect.provide(gateway.layer));
+});
+
+it.effect("allows an Organization to save every regular day as closed", () => {
+  const gateway = makeGateway();
+
+  return Effect.gen(function* () {
+    yield* replaceWeeklyBookingHours(organizationId, { windows: [] });
+    expect(gateway.weeklyReplacements[0]).toMatchObject({ windows: [] });
+  }).pipe(Effect.provide(gateway.layer));
+});
+
+it.effect("rejects overlapping windows on the same weekday", () => {
+  const gateway = makeGateway();
+
+  return Effect.gen(function* () {
+    const error = yield* Effect.flip(
+      replaceWeeklyBookingHours(organizationId, {
+        windows: [
+          { dayOfWeek: 1, startMinute: 540, endMinute: 720 },
+          { dayOfWeek: 1, startMinute: 660, endMinute: 780 },
+        ],
+      }),
+    );
+
+    expect(error).toBeInstanceOf(InvalidAvailabilityInput);
+    expect(gateway.weeklyReplacements).toEqual([]);
+  }).pipe(Effect.provide(gateway.layer));
+});
+
 it.effect(
-  "materializes complete periods and leaves the final remainder empty",
+  "uses a Date Exception instead of regular hours for that date",
   () => {
     const gateway = makeGateway();
-    const date = "2026-08-26";
 
     return Effect.gen(function* () {
-      const result = yield* applyWeeklyAvailability(
+      const overview = yield* getAvailabilityOverview(
         organizationId,
         timeZone,
-        {
-          startDate: date,
-          endDate: date,
-          durationMinutes: 60,
-          ranges: [
-            {
-              dayOfWeek: localDateDayOfWeek(date),
-              startMinute: 540,
-              endMinute: 690,
-            },
-          ],
-        },
+        { from: "2026-08-25", to: "2026-08-27" },
         now,
       );
 
-      expect(result).toEqual({ created: 2 });
-      expect(gateway.replacements).toEqual([
+      expect(overview.days).toEqual([
         {
-          organizationId,
-          from: date,
-          to: date,
-          periods: [
-            { date, startMinute: 540, endMinute: 600 },
-            { date, startMinute: 600, endMinute: 660 },
-          ],
+          date: "2026-08-25",
+          source: "regular",
+          windows: [{ startMinute: 540, endMinute: 1020 }],
+        },
+        { date: "2026-08-26", source: "exception", windows: [] },
+        {
+          date: "2026-08-27",
+          source: "regular",
+          windows: [],
         },
       ]);
     }).pipe(Effect.provide(gateway.layer));
   },
 );
 
-it.effect("omits generated periods that have already started today", () => {
+it.effect("saves a closed-all-day Date Exception", () => {
   const gateway = makeGateway();
-  const date = "2026-08-25";
 
   return Effect.gen(function* () {
-    const result = yield* applyWeeklyAvailability(
+    const result = yield* upsertBookingHoursDateException(
       organizationId,
       timeZone,
-      {
-        startDate: date,
-        endDate: date,
-        durationMinutes: 60,
-        ranges: [
-          {
-            dayOfWeek: localDateDayOfWeek(date),
-            startMinute: 540,
-            endMinute: 780,
-          },
-        ],
-      },
+      { date: "2026-08-26", windows: [] },
       now,
     );
 
-    expect(result).toEqual({ created: 2 });
-    expect(gateway.replacements[0]).toMatchObject({
-      periods: [
-        { date, startMinute: 660, endMinute: 720 },
-        { date, startMinute: 720, endMinute: 780 },
-      ],
+    expect(result).toEqual({
+      id: "exception-new",
+      date: "2026-08-26",
+      windows: [],
+    });
+    expect(gateway.exceptionUpserts[0]).toMatchObject({
+      organizationId,
+      date: "2026-08-26",
+      windows: [],
     });
   }).pipe(Effect.provide(gateway.layer));
 });
 
-it.effect(
-  "rejects a bulk operation that would create more than 1,000 periods",
-  () => {
-    const gateway = makeGateway();
-    const date = "2026-08-26";
-
-    return Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        applyWeeklyAvailability(
-          organizationId,
-          timeZone,
-          {
-            startDate: date,
-            endDate: date,
-            durationMinutes: 1,
-            ranges: [
-              {
-                dayOfWeek: localDateDayOfWeek(date),
-                startMinute: 0,
-                endMinute: 1440,
-              },
-            ],
-          },
-          now,
-        ),
-      );
-
-      expect(error).toBeInstanceOf(AvailabilityBulkLimitExceeded);
-      expect(gateway.replacements).toEqual([]);
-    }).pipe(Effect.provide(gateway.layer));
-  },
-);
-
-it.effect("limits weekly materialization to 365 dates", () => {
+it.effect("rejects a Date Exception in the past", () => {
   const gateway = makeGateway();
 
   return Effect.gen(function* () {
     const error = yield* Effect.flip(
-      applyWeeklyAvailability(
+      upsertBookingHoursDateException(
         organizationId,
         timeZone,
         {
-          startDate: "2026-08-25",
-          endDate: "2027-08-25",
-          durationMinutes: 30,
-          ranges: [{ dayOfWeek: 1, startMinute: 540, endMinute: 570 }],
+          date: "2026-08-24",
+          windows: [{ startMinute: 540, endMinute: 1020 }],
         },
         now,
       ),
     );
 
     expect(error).toBeInstanceOf(InvalidAvailabilityInput);
-    expect(gateway.replacements).toEqual([]);
+    expect(gateway.exceptionUpserts).toEqual([]);
   }).pipe(Effect.provide(gateway.layer));
 });
 
-it.effect("requires manually created periods to start in the future", () => {
+it.effect("deletes a Date Exception by date", () => {
   const gateway = makeGateway();
 
   return Effect.gen(function* () {
-    const error = yield* Effect.flip(
-      createAvailabilityPeriod(
-        organizationId,
-        timeZone,
-        { date: "2026-08-25", startMinute: 600, endMinute: 630 },
-        now,
-      ),
-    );
-
-    expect(error).toBeInstanceOf(InvalidAvailabilityInput);
-    expect(gateway.created).toEqual([]);
-  }).pipe(Effect.provide(gateway.layer));
-});
-
-it.effect("accepts a full-day manual period on a future date", () => {
-  const gateway = makeGateway();
-
-  return Effect.gen(function* () {
-    const result = yield* createAvailabilityPeriod(
-      organizationId,
-      timeZone,
-      { date: "2026-08-26", startMinute: 0, endMinute: 1440 },
-      now,
-    );
-
-    expect(result).toEqual({
-      id: "period-1",
+    yield* deleteBookingHoursDateException(organizationId, {
       date: "2026-08-26",
-      startMinute: 0,
-      endMinute: 1440,
     });
+    expect(gateway.exceptionDeletes).toEqual([
+      { organizationId, date: "2026-08-26" },
+    ]);
   }).pipe(Effect.provide(gateway.layer));
 });
 
-it.effect("updates the Organization default without touching periods", () => {
-  const gateway = makeGateway();
+it.effect(
+  "keeps a not-found error returned while deleting an exception",
+  () => {
+    const service = makeGateway().service;
+    const layer = Layer.succeed(AvailabilityGateway, {
+      ...service,
+      deleteDateException: () => Effect.fail(new AvailabilityNotFound()),
+    });
 
-  return Effect.gen(function* () {
-    yield* updateDefaultAvailabilityDuration(organizationId, { minutes: 45 });
-    expect(gateway.defaultDurations).toEqual([45]);
-    expect(gateway.replacements).toEqual([]);
-  }).pipe(Effect.provide(gateway.layer));
-});
-
-it.effect("keeps overlap conflicts returned by persistence", () => {
-  const service = makeGateway().service;
-  const conflictLayer = Layer.succeed(AvailabilityGateway, {
-    ...service,
-    createPeriod: () => Effect.fail(new AvailabilityConflict()),
-  });
-
-  return Effect.gen(function* () {
-    const error = yield* Effect.flip(
-      createAvailabilityPeriod(
-        organizationId,
-        timeZone,
-        { date: "2026-08-26", startMinute: 540, endMinute: 600 },
-        now,
-      ),
-    );
-    expect(error).toBeInstanceOf(AvailabilityConflict);
-  }).pipe(Effect.provide(conflictLayer));
-});
+    return Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        deleteBookingHoursDateException(organizationId, {
+          date: "2026-08-26",
+        }),
+      );
+      expect(error).toBeInstanceOf(AvailabilityNotFound);
+    }).pipe(Effect.provide(layer));
+  },
+);
