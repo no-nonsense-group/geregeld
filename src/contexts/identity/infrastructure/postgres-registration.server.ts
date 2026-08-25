@@ -1,7 +1,6 @@
 import "@tanstack/react-start/server-only";
 
 import {
-  createHash,
   createHmac,
   randomBytes,
   randomInt,
@@ -24,6 +23,7 @@ import {
 import { RegistrationGateway } from "#/contexts/identity/slices/register/gateway";
 import {
   identitySessionExpiresAt,
+  identitySessionTokenHash,
   setIdentitySessionCookie,
 } from "#/platform/auth/session.server";
 import { database } from "#/platform/database/drizzle.server";
@@ -78,10 +78,6 @@ function hashesMatch(expected: string, actual: string): boolean {
     expectedBytes.length === actualBytes.length &&
     timingSafeEqual(expectedBytes, actualBytes)
   );
-}
-
-function sessionTokenHash(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
 }
 
 function isCompletionError(error: unknown): error is CompletionError {
@@ -242,7 +238,7 @@ export const PostgresRegistrationLive = Layer.succeed(RegistrationGateway, {
 
           await transaction.insert(identity_session).values({
             expiresAt: identitySessionExpiresAt(),
-            tokenHash: sessionTokenHash(sessionToken),
+            tokenHash: identitySessionTokenHash(sessionToken),
             userId: user.id,
           });
 

@@ -7,7 +7,8 @@ This glossary defines the words used in the product and its domain model.
 
 **User**:
 A person with a verified email identity who can sign in to Geregeld. A User has
-no access to an Organization without a Membership.
+no access to an Organization without a Membership and belongs to at most one
+Organization.
 _Avoid_: Account, business user
 
 **Registration**:
@@ -17,7 +18,8 @@ _Avoid_: Account creation, organization registration
 
 **Organization**:
 A business or independent professional that manages its own Services,
-Availability, and Bookings in Geregeld.
+Availability, and Bookings in Geregeld. Its name is the public business name
+shown to Clients.
 _Avoid_: Account, tenant
 
 **Membership**:
@@ -26,7 +28,8 @@ Organization.
 _Avoid_: Access, organization user
 
 **Owner**:
-A User whose Membership gives them full control of an Organization.
+A User whose Membership gives them full control of an Organization. An
+Organization has one Owner.
 _Avoid_: Admin, business owner
 
 **Client**:
