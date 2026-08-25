@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Building2, Check, ChevronDown, Clock3 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
 
 import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
@@ -60,7 +60,7 @@ function SetupPage() {
     }
   }, []);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
     setIsSubmitting(true);

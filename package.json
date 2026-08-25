@@ -22,8 +22,9 @@
     "lint": "node scripts/ensure-supported-node.mjs && biome lint .",
     "check": "node scripts/ensure-supported-node.mjs && biome check .",
     "typecheck": "node scripts/ensure-supported-node.mjs && tsc --noEmit",
+    "check:deprecations": "node scripts/ensure-supported-node.mjs && node scripts/check-typescript-deprecations.mjs",
     "test": "node scripts/ensure-supported-node.mjs && vitest run",
-    "quality": "node scripts/ensure-supported-node.mjs && biome check . && tsc --noEmit && vitest run && node --check scripts/migrate-for-vercel.mjs && vite build"
+    "quality": "node scripts/ensure-supported-node.mjs && biome check . && tsc --noEmit && node scripts/check-typescript-deprecations.mjs && vitest run && node --check scripts/migrate-for-vercel.mjs && vite build"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",

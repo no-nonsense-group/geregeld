@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Mail } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "#/components/ui/button";
 import { registrationCopy } from "#/content/registration";
@@ -90,12 +90,12 @@ function RegistrationPage() {
     }
   }
 
-  async function submitEmail(event: FormEvent<HTMLFormElement>) {
+  async function submitEmail(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     await requestCode();
   }
 
-  async function submitCode(event: FormEvent<HTMLFormElement>) {
+  async function submitCode(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
     setIsSubmitting(true);
