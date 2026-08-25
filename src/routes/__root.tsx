@@ -11,7 +11,6 @@ import { AppControls } from "#/components/app-controls";
 import { landingCopy } from "#/content/landing";
 import type { RouterContext } from "#/router";
 import { resolveUiLocale, uiLocaleStorageKey } from "#/shared/i18n";
-import legacySpacingCss from "../legacy-spacing.css?url";
 import appCss from "../styles.css?url";
 
 const localeScript = `try {
@@ -106,10 +105,6 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         {
           rel: "stylesheet",
           href: appCss,
-        },
-        {
-          rel: "stylesheet",
-          href: legacySpacingCss,
         },
       ],
     };
