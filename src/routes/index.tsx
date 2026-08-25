@@ -72,7 +72,7 @@ function Home() {
             </fieldset>
             <a
               className="hidden min-h-10 items-center justify-center rounded-full px-3 font-semibold text-sm transition-colors hover:bg-muted sm:inline-flex"
-              href="/login"
+              href={`/login?lang=${lang}`}
             >
               {copy.actions.login}
             </a>
@@ -108,7 +108,7 @@ function Home() {
                 </a>
                 <a
                   className="inline-flex min-h-12 items-center justify-center rounded-full border border-border bg-background/70 px-6 font-semibold text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
-                  href="/login"
+                  href={`/login?lang=${lang}`}
                 >
                   {copy.actions.login}
                 </a>

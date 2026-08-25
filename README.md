@@ -41,14 +41,14 @@ bun run quality
 Every project script checks for Node 24 before invoking its tool.
 
 Copy `.env.example` to `.env` and set the database connections before using the
-registration flow. The application uses `DATABASE_URL`; Drizzle Kit uses
+identity flows. The application uses `DATABASE_URL`; Drizzle Kit uses
 `DATABASE_URL_UNPOOLED` so schema migrations bypass the connection pool.
 
-Production registration emails use Resend. Set `RESEND_API_KEY` and
-`RESEND_FROM_EMAIL` in Vercel after verifying the sender domain in Resend. Set
-`REGISTRATION_CODE_SECRET` to a separate random value of at least 32 characters.
-Local development shows the registration code in the browser and does not call
-Resend.
+Production registration and login emails use Resend. Set `RESEND_API_KEY` and
+`RESEND_FROM_EMAIL` in Vercel after verifying the sender domain in Resend.
+`REGISTRATION_CODE_SECRET` secures both kinds of code and must contain a
+separate random value of at least 32 characters. Local development shows the
+code in the browser and does not call Resend.
 
 Vercel runs pending migrations after a successful production build and before
 publishing the deployment. Preview builds skip migrations. The deployment fails

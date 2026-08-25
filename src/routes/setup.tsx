@@ -21,7 +21,7 @@ export const Route = createFileRoute("/setup")({
     const state = await getOrganizationContextFn();
 
     if (state.status === "unauthenticated") {
-      throw redirect({ to: "/register", search: { lang: deps.lang } });
+      throw redirect({ to: "/login", search: { lang: deps.lang } });
     }
 
     if (state.status === "ready") {
@@ -77,7 +77,7 @@ function SetupPage() {
 
       if (!result.ok) {
         if (result.error === "UNAUTHENTICATED") {
-          await navigate({ to: "/register", search: { lang } });
+          await navigate({ to: "/login", search: { lang } });
           return;
         }
 

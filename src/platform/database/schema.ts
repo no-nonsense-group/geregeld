@@ -50,6 +50,15 @@ export const identity_registration_challenge = pgTable(
   },
 );
 
+export const identity_login_challenge = pgTable("identity_login_challenge", {
+  id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+  email: text("email").notNull().unique(),
+  codeHash: text("code_hash").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const organization_membership_role = pgEnum(
   "organization_membership_role",
   ["owner"],

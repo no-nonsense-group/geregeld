@@ -10,7 +10,7 @@ export const Route = createFileRoute("/dashboard")({
     const state = await getOrganizationContextFn();
 
     if (state.status === "unauthenticated") {
-      throw redirect({ to: "/register", search: { lang: deps.lang } });
+      throw redirect({ to: "/login", search: { lang: deps.lang } });
     }
 
     if (state.status === "setup-required") {
