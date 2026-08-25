@@ -12,8 +12,8 @@
   "scripts": {
     "dev": "node scripts/ensure-supported-node.mjs && vite dev --port 3000",
     "generate-routes": "node scripts/ensure-supported-node.mjs && tsr generate",
-    "build": "node scripts/ensure-supported-node.mjs && vite build",
-    "deploy:build": "node scripts/ensure-supported-node.mjs && vite build && node scripts/migrate-for-vercel.mjs",
+    "build": "node scripts/ensure-supported-node.mjs && vite build && node scripts/check-legacy-spacing.mjs",
+    "deploy:build": "node scripts/ensure-supported-node.mjs && vite build && node scripts/check-legacy-spacing.mjs && node scripts/migrate-for-vercel.mjs",
     "preview": "node scripts/ensure-supported-node.mjs && vite preview",
     "db:generate": "node scripts/ensure-supported-node.mjs && drizzle-kit generate",
     "db:migrate": "node scripts/ensure-supported-node.mjs && drizzle-kit migrate",
@@ -24,7 +24,7 @@
     "typecheck": "node scripts/ensure-supported-node.mjs && tsc --noEmit",
     "check:deprecations": "node scripts/ensure-supported-node.mjs && node scripts/check-typescript-deprecations.mjs",
     "test": "node scripts/ensure-supported-node.mjs && vitest run",
-    "quality": "node scripts/ensure-supported-node.mjs && biome check . && tsc --noEmit && node scripts/check-typescript-deprecations.mjs && vitest run && node --check scripts/migrate-for-vercel.mjs && vite build"
+    "quality": "node scripts/ensure-supported-node.mjs && biome check . && tsc --noEmit && node scripts/check-typescript-deprecations.mjs && vitest run && node --check scripts/migrate-for-vercel.mjs && vite build && node scripts/check-legacy-spacing.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",
