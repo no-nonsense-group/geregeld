@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 
 import { Layer, ManagedRuntime } from "effect";
 
+import { PostgresManageAvailabilityLive } from "#/contexts/availability/infrastructure/postgres-manage-availability.server";
 import { PostgresCurrentUserLive } from "#/contexts/identity/infrastructure/postgres-current-user.server";
 import { PostgresLoginLive } from "#/contexts/identity/infrastructure/postgres-login.server";
 import { PostgresRegistrationLive } from "#/contexts/identity/infrastructure/postgres-registration.server";
@@ -12,6 +13,7 @@ const AppLayer = Layer.mergeAll(
   PostgresLoginLive,
   PostgresCurrentUserLive,
   PostgresSetupOrganizationLive,
+  PostgresManageAvailabilityLive,
 );
 
 export const appRuntime = ManagedRuntime.make(AppLayer);

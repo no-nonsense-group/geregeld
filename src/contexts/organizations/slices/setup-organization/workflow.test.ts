@@ -20,6 +20,8 @@ const organization = {
   id: OrganizationId.make("organization-1"),
   name: OrganizationName.make("Studio Noord"),
   timeZone: IanaTimeZone.make("Europe/Amsterdam"),
+  defaultAvailabilityPeriodMinutes: 30,
+  availabilityConfiguredAt: null,
 };
 
 function makeGateway(existing = false) {

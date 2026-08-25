@@ -1,6 +1,8 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
+  date,
   index,
   integer,
   pgEnum,
@@ -68,12 +70,58 @@ export const organization = pgTable("organization", {
   id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
   name: text("name").notNull(),
   timeZone: text("time_zone").notNull(),
+  defaultAvailabilityPeriodMinutes: integer(
+    "default_availability_period_minutes",
+  )
+    .default(30)
+    .notNull(),
+  availabilityConfiguredAt: timestamp("availability_configured_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
 });
+
+export const availability_period = pgTable(
+  "availability_period",
+  {
+    id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    date: date("date", { mode: "string" }).notNull(),
+    startMinute: integer("start_minute").notNull(),
+    endMinute: integer("end_minute").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("availability_period_organization_date_idx").on(
+      table.organizationId,
+      table.date,
+    ),
+    check(
+      "availability_period_start_minute_check",
+      sql`${table.startMinute} >= 0 AND ${table.startMinute} < 1440`,
+    ),
+    check(
+      "availability_period_end_minute_check",
+      sql`${table.endMinute} > 0 AND ${table.endMinute} <= 1440`,
+    ),
+    check(
+      "availability_period_order_check",
+      sql`${table.startMinute} < ${table.endMinute}`,
+    ),
+    check(
+      "availability_period_date_limit_check",
+      sql`${table.date} <= DATE '2099-12-31'`,
+    ),
+  ],
+);
 
 export const organization_membership = pgTable(
   "organization_membership",
@@ -113,7 +161,18 @@ export const identity_sessionRelations = relations(
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   memberships: many(organization_membership),
+  availabilityPeriods: many(availability_period),
 }));
+
+export const availability_periodRelations = relations(
+  availability_period,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [availability_period.organizationId],
+      references: [organization.id],
+    }),
+  }),
+);
 
 export const organization_membershipRelations = relations(
   organization_membership,

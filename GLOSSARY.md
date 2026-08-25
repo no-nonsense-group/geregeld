@@ -44,9 +44,21 @@ A bookable activity offered by an Organization.
 _Avoid_: Product, appointment type
 
 **Availability**:
-The times when an Organization is willing to accept Bookings. Availability
+The time periods on future calendar dates, interpreted only in its configured
+time zone, when an Organization is willing to accept Bookings. Availability
 alone does not guarantee that a Slot can be booked.
 _Avoid_: Opening hours, schedule
+
+**Availability Period**:
+A single interval on a specific date when an Organization is willing to accept
+one Booking. An Availability Period cannot cross into another calendar date.
+_Avoid_: Slot, block
+
+**Default Availability Period Duration**:
+An Organization preference used to propose the duration of new Availability
+Periods and to split drawn time ranges. Changing it does not alter existing
+Availability Periods.
+_Avoid_: Appointment duration, Slot duration
 
 **Slot**:
 A candidate time for a Service. A Slot is not reserved and does not guarantee
