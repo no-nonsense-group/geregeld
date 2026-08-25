@@ -44,7 +44,23 @@ Copy `.env.example` to `.env` and set the database connections before using the
 registration flow. The application uses `DATABASE_URL`; Drizzle Kit uses
 `DATABASE_URL_UNPOOLED` so schema migrations bypass the connection pool.
 
-Apply pending migrations before starting the app:
+Production registration emails use Resend. Set `RESEND_API_KEY` and
+`RESEND_FROM_EMAIL` in Vercel after verifying the sender domain in Resend. Set
+`REGISTRATION_CODE_SECRET` to a separate random value of at least 32 characters.
+Local development shows the registration code in the browser and does not call
+Resend.
+
+Vercel runs pending migrations after a successful production build and before
+publishing the deployment. Preview builds skip migrations. The deployment fails
+if the direct database connection is missing or a migration fails.
+
+Deploy production from the production branch rather than promoting a preview
+deployment when migrations are pending. Vercel promotions reuse the preview
+build, so they do not run the production build command again. Keep migrations
+compatible with the currently deployed application until the new deployment is
+published.
+
+For local database work, apply pending migrations before starting the app:
 
 ```sh
 bun run db:migrate

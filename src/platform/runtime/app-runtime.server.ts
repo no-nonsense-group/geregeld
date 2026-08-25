@@ -2,8 +2,8 @@ import "@tanstack/react-start/server-only";
 
 import { Layer, ManagedRuntime } from "effect";
 
-import { BetterAuthRegistrationLive } from "#/contexts/identity/infrastructure/better-auth-registration.server";
+import { PostgresRegistrationLive } from "#/contexts/identity/infrastructure/postgres-registration.server";
 
-const AppLayer = Layer.mergeAll(BetterAuthRegistrationLive);
+const AppLayer = Layer.mergeAll(PostgresRegistrationLive);
 
 export const appRuntime = ManagedRuntime.make(AppLayer);

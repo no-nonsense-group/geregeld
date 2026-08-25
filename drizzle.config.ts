@@ -7,12 +7,9 @@ if (!migrationUrl) {
   throw new Error("DATABASE_URL_UNPOOLED or DATABASE_URL is required");
 }
 
-if (
-  !process.env.DATABASE_URL_UNPOOLED &&
-  new URL(migrationUrl).hostname.includes("-pooler")
-) {
+if (new URL(migrationUrl).hostname.includes("-pooler")) {
   throw new Error(
-    "DATABASE_URL_UNPOOLED is required when DATABASE_URL uses a pooled endpoint",
+    "Migrations require a direct database URL, but the configured URL uses a pooled endpoint",
   );
 }
 
