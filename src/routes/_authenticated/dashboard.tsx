@@ -2,6 +2,10 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, Clock3, Settings2 } from "lucide-react";
 
 import { AppControls } from "#/components/app-controls";
+import {
+  dateGroupLabel,
+  groupUpcomingDateExceptions,
+} from "#/components/availability-date-groups";
 import { Brand } from "#/components/brand";
 import { organizationCopy } from "#/content/organization";
 import type { AvailabilityOverview } from "#/contexts/availability/slices/manage-availability/contract";
@@ -182,9 +186,12 @@ function DashboardPage() {
           title: copy.availabilityValue,
           detail: copy.availabilityEmpty,
         };
-  const nextException = availability?.dateExceptions
-    .filter((exception) => exception.date >= availability.localToday)
-    .sort((left, right) => left.date.localeCompare(right.date))[0];
+  const upcomingDateGroups = availability
+    ? groupUpcomingDateExceptions(
+        availability.dateExceptions,
+        availability.localToday,
+      )
+    : [];
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -241,12 +248,24 @@ function DashboardPage() {
               {summary.detail}
             </p>
 
-            {nextException ? (
-              <p className="mt-5 rounded-2xl bg-muted px-4 py-3 text-muted-foreground text-sm">
-                {nextException.windows.length === 0
-                  ? copy.nextClosed(shortDate(nextException.date, lang))
-                  : copy.nextChanged(shortDate(nextException.date, lang))}
-              </p>
+            {upcomingDateGroups.length > 0 ? (
+              <div className="mt-5 grid gap-2">
+                {upcomingDateGroups.slice(0, 3).map((group) => (
+                  <p
+                    key={`${group.from}-${group.to}`}
+                    className="rounded-2xl bg-muted px-4 py-3 text-muted-foreground text-sm"
+                  >
+                    {group.windows.length === 0
+                      ? copy.nextClosed(dateGroupLabel(group, lang))
+                      : copy.nextChanged(dateGroupLabel(group, lang))}
+                  </p>
+                ))}
+                {upcomingDateGroups.length > 3 ? (
+                  <p className="px-1 text-muted-foreground text-xs">
+                    {copy.moreDates(upcomingDateGroups.length - 3)}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
 
             <Link

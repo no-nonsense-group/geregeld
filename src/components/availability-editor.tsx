@@ -9,6 +9,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  dateGroupLabel,
+  groupUpcomingDateExceptions,
+} from "#/components/availability-date-groups";
 import { Button } from "#/components/ui/button";
 import type { organizationCopy } from "#/content/organization";
 import type {
@@ -79,16 +83,6 @@ function dayLabel(dayIndex: number, lang: UiLocale): string {
     timeZone: "UTC",
     weekday: "long",
   }).format(new Date(Date.UTC(2024, 0, 1 + dayIndex)));
-}
-
-function dateLabel(date: string, lang: UiLocale): string {
-  return new Intl.DateTimeFormat(lang, {
-    timeZone: "UTC",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(`${date}T12:00:00.000Z`));
 }
 
 function sortWindows(windows: ReadonlyArray<TimeWindow>): Array<TimeWindow> {
@@ -292,11 +286,8 @@ export function AvailabilityEditor({
     additionalDatesInvalid ||
     (dateAvailable &&
       (dateWindows.length === 0 || !windowsAreValid(dateWindows)));
-  const nextException = useMemo(
-    () =>
-      [...exceptions]
-        .filter((exception) => exception.date >= initial.localToday)
-        .sort((left, right) => left.date.localeCompare(right.date))[0],
+  const upcomingDateGroups = useMemo(
+    () => groupUpcomingDateExceptions(exceptions, initial.localToday),
     [exceptions, initial.localToday],
   );
 
@@ -1015,12 +1006,24 @@ export function AvailabilityEditor({
               <h2 className="font-heading font-semibold text-xl">
                 {copy.specificDates}
               </h2>
-              {nextException ? (
-                <p className="mt-1 text-muted-foreground text-sm">
-                  {nextException.windows.length === 0
-                    ? copy.nextClosed(dateLabel(nextException.date, lang))
-                    : copy.nextChanged(dateLabel(nextException.date, lang))}
-                </p>
+              {upcomingDateGroups.length > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  {upcomingDateGroups.slice(0, 3).map((group) => (
+                    <p
+                      key={`${group.from}-${group.to}`}
+                      className="rounded-xl bg-muted px-3 py-2 text-muted-foreground text-sm"
+                    >
+                      {group.windows.length === 0
+                        ? copy.nextClosed(dateGroupLabel(group, lang))
+                        : copy.nextChanged(dateGroupLabel(group, lang))}
+                    </p>
+                  ))}
+                  {upcomingDateGroups.length > 3 ? (
+                    <p className="px-1 text-muted-foreground text-xs">
+                      {copy.moreDates(upcomingDateGroups.length - 3)}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
             <Button

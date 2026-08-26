@@ -48,6 +48,8 @@ export const organizationCopy = {
       setAvailability: "Beschikbaarheid instellen",
       nextClosed: (date: string) => `Gesloten op ${date}`,
       nextChanged: (date: string) => `Andere tijden op ${date}`,
+      moreDates: (count: number) =>
+        count === 1 ? "Nog 1 datum" : `Nog ${count} datums`,
       dayRange: (from: string, to: string) => `${from} tot en met ${to}`,
       closeAvailability: "Editor sluiten",
       weekOverview: "Weekoverzicht",
@@ -134,6 +136,8 @@ export const organizationCopy = {
       discardChanges: "Je hebt niet-opgeslagen wijzigingen. Toch weggaan?",
       nextClosed: (date: string) => `Gesloten op ${date}`,
       nextChanged: (date: string) => `Andere tijden op ${date}`,
+      moreDates: (count: number) =>
+        count === 1 ? "Nog 1 datum" : `Nog ${count} datums`,
       errors: {
         invalid: "Controleer de dagen en tijden. Tijden mogen niet overlappen.",
         unavailable:
@@ -276,6 +280,8 @@ export const organizationCopy = {
       setAvailability: "Set availability",
       nextClosed: (date: string) => `Closed on ${date}`,
       nextChanged: (date: string) => `Different hours on ${date}`,
+      moreDates: (count: number) =>
+        count === 1 ? "1 more date" : `${count} more dates`,
       dayRange: (from: string, to: string) => `${from} to ${to}`,
       closeAvailability: "Close editor",
       weekOverview: "Weekly overview",
@@ -362,6 +368,8 @@ export const organizationCopy = {
       discardChanges: "You have unsaved changes. Leave anyway?",
       nextClosed: (date: string) => `Closed on ${date}`,
       nextChanged: (date: string) => `Different hours on ${date}`,
+      moreDates: (count: number) =>
+        count === 1 ? "1 more date" : `${count} more dates`,
       errors: {
         invalid: "Check the days and times. Times cannot overlap.",
         unavailable: "Your changes cannot be saved right now. Try again.",
