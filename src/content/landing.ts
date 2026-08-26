@@ -14,6 +14,8 @@ export const landingCopy = {
       home: "Geregeld home",
       language: "Taal kiezen",
     },
+    deletionNotice:
+      "Je bedrijf en gebruikersregistratie zijn definitief verwijderd.",
     navigation: {
       howItWorks: "Hoe het werkt",
       pricing: "Prijzen",
@@ -32,7 +34,7 @@ export const landingCopy = {
     },
     demo: {
       label: "Tijdelijke plek voor de productdemo",
-      status: "Demo volgt binnenkort"
+      status: "Demo volgt binnenkort",
     },
     overview: {
       title: "Wat is het?",
@@ -70,6 +72,8 @@ export const landingCopy = {
       home: "Geregeld home",
       language: "Choose language",
     },
+    deletionNotice:
+      "Your business and user registration have been permanently deleted.",
     navigation: {
       howItWorks: "How it works",
       pricing: "Pricing",
@@ -88,7 +92,7 @@ export const landingCopy = {
     },
     demo: {
       label: "Temporary product demo placeholder",
-      status: "Demo coming soon"
+      status: "Demo coming soon",
     },
     overview: {
       title: "What is it?",

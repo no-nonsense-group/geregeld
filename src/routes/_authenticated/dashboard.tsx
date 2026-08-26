@@ -1,5 +1,10 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { CalendarDays, ChevronDown, Clock3 } from "lucide-react";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useRouter,
+} from "@tanstack/react-router";
+import { CalendarDays, ChevronDown, Clock3, Settings2 } from "lucide-react";
 import { useState } from "react";
 import { AppControls } from "#/components/app-controls";
 import { AvailabilityEditor } from "#/components/availability-editor";
@@ -83,13 +88,23 @@ function DashboardPage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-        <h1 className="mt-4 max-w-3xl text-balance font-heading font-semibold text-4xl tracking-[-0.055em] sm:text-6xl">
-          {copy.titleLead}{" "}
-          <span className="font-bold text-primary [text-shadow:0_2px_18px_oklch(0.64_0.15_151/0.28)]">
-            {organization.name}
-          </span>
-          .
-        </h1>
+        <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <h1 className="max-w-3xl text-balance font-heading font-semibold text-4xl tracking-[-0.055em] sm:text-6xl">
+            {copy.titleLead}{" "}
+            <span className="font-bold text-primary [text-shadow:0_2px_18px_oklch(0.64_0.15_151/0.28)]">
+              {organization.name}
+            </span>
+            .
+          </h1>
+          <Link
+            to="/settings"
+            search={{ lang }}
+            className="inline-flex h-11 w-fit shrink-0 items-center gap-2 rounded-full bg-primary px-5 font-semibold text-primary-foreground text-sm transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          >
+            <Settings2 aria-hidden="true" className="size-4" />
+            {copy.settings}
+          </Link>
+        </div>
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground leading-relaxed">
           {copy.description}
         </p>

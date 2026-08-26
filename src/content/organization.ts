@@ -91,6 +91,84 @@ export const organizationCopy = {
         },
       },
       timeZone: "Tijdzone",
+      settings: "Bedrijfsinstellingen",
+    },
+    settings: {
+      meta: {
+        title: "Bedrijfsinstellingen | Geregeld",
+        description: "Beheer je bedrijfsgegevens en abonnement.",
+      },
+      back: "Terug naar dashboard",
+      title: "Bedrijfsinstellingen",
+      description:
+        "Werk je openbare bedrijfsnaam, tijdzone en overige instellingen bij.",
+      details: {
+        title: "Bedrijfsgegevens",
+        description:
+          "Je bedrijfsnaam is zichtbaar voor klanten. Je tijdzone bepaalt hoe Geregeld je lokale tijden interpreteert.",
+        nameLabel: "Naam van je bedrijf",
+        namePlaceholder: "Bijvoorbeeld Studio Noord",
+        timeZoneLabel: "Tijdzone",
+        timeZoneHint:
+          "Boekingstijden blijven op dezelfde lokale kloktijden staan wanneer je dit wijzigt.",
+        save: "Wijzigingen opslaan",
+        saving: "Wijzigingen opslaan...",
+        saved: "Je bedrijfsgegevens zijn opgeslagen.",
+        errors: {
+          invalid: "Controleer de bedrijfsnaam en tijdzone.",
+          unavailable:
+            "Je bedrijfsgegevens kunnen nu niet worden opgeslagen. Probeer het opnieuw.",
+        },
+      },
+      timeZoneDialog: {
+        title: "Tijdzone wijzigen?",
+        description:
+          "Je bestaande bookings behouden hun geplande moment. Je boekingstijden en datumafwijkingen behouden hun lokale kloktijden en gebruiken voortaan de nieuwe tijdzone.",
+        cancel: "Niet wijzigen",
+        confirm: "Tijdzone wijzigen",
+      },
+      team: {
+        title: "Teamleden",
+        badge: "In aanbouw",
+        description:
+          "Naast de eigenaar kun je straks maximaal vijf teamleden uitnodigen.",
+        emailLabel: "E-mailadres",
+        emailPlaceholder: "teamlid@voorbeeld.nl",
+        invite: "Uitnodigen",
+      },
+      subscription: {
+        title: "Abonnement",
+        description:
+          "Je kunt je abonnement straks opzeggen en Geregeld blijven gebruiken tot het einde van je betaalperiode.",
+        cancel: "Abonnement opzeggen",
+        dialog: {
+          title: "Abonnement opzeggen?",
+          description:
+            "Je toegang blijft actief tot het einde van je huidige betaalperiode. Daarna wordt het abonnement niet verlengd.",
+          back: "Abonnement behouden",
+          confirm: "Opzegging bevestigen",
+        },
+        preview:
+          "Opzeggen is nog niet gekoppeld aan facturatie. Er is niets gewijzigd.",
+      },
+      danger: {
+        title: "Gevarenzone",
+        description:
+          "Verwijder je bedrijf, alle bijbehorende gegevens en je gebruikersregistratie permanent.",
+        delete: "Bedrijf verwijderen",
+        dialog: {
+          title: "Bedrijf definitief verwijderen?",
+          description:
+            "Dit verwijdert je bedrijf, boekingstijden, bookings, gebruikersregistratie en actieve sessies. Je wordt uitgelogd. Dit kan niet ongedaan worden gemaakt.",
+          acknowledge:
+            "Ik begrijp dat mijn bedrijf en gebruikersregistratie permanent worden verwijderd.",
+          back: "Annuleren",
+          confirm: "Alles definitief verwijderen",
+          deleting: "Alles verwijderen...",
+          error:
+            "Je bedrijf kon niet worden verwijderd. Er is niets gewijzigd. Probeer het opnieuw.",
+        },
+      },
     },
     terms: {
       meta: {
@@ -194,6 +272,84 @@ export const organizationCopy = {
         },
       },
       timeZone: "Time zone",
+      settings: "Business settings",
+    },
+    settings: {
+      meta: {
+        title: "Business settings | Geregeld",
+        description: "Manage your business details and subscription.",
+      },
+      back: "Back to dashboard",
+      title: "Business settings",
+      description:
+        "Update your public business name, time zone, and other settings.",
+      details: {
+        title: "Business details",
+        description:
+          "Your business name is visible to clients. Your time zone determines how Geregeld interprets your local times.",
+        nameLabel: "Business name",
+        namePlaceholder: "For example, Studio North",
+        timeZoneLabel: "Time zone",
+        timeZoneHint:
+          "Booking hours keep the same local clock times when you change this.",
+        save: "Save changes",
+        saving: "Saving changes...",
+        saved: "Your business details have been saved.",
+        errors: {
+          invalid: "Check the business name and time zone.",
+          unavailable:
+            "Your business details cannot be saved right now. Try again.",
+        },
+      },
+      timeZoneDialog: {
+        title: "Change time zone?",
+        description:
+          "Existing bookings keep their scheduled moments. Booking Hours and date exceptions keep their local clock times and will use the new time zone.",
+        cancel: "Keep current time zone",
+        confirm: "Change time zone",
+      },
+      team: {
+        title: "Team members",
+        badge: "Under construction",
+        description:
+          "You will be able to invite up to five team members in addition to the Owner.",
+        emailLabel: "Email address",
+        emailPlaceholder: "team-member@example.com",
+        invite: "Invite",
+      },
+      subscription: {
+        title: "Subscription",
+        description:
+          "You will be able to cancel your subscription and keep using Geregeld until the end of your billing period.",
+        cancel: "Cancel subscription",
+        dialog: {
+          title: "Cancel subscription?",
+          description:
+            "Your access will remain active until the end of your current billing period. The subscription will not renew after that.",
+          back: "Keep subscription",
+          confirm: "Confirm cancellation",
+        },
+        preview:
+          "Cancellation is not connected to billing yet. Nothing has changed.",
+      },
+      danger: {
+        title: "Danger zone",
+        description:
+          "Permanently delete your business, all associated data, and your user registration.",
+        delete: "Delete business",
+        dialog: {
+          title: "Permanently delete this business?",
+          description:
+            "This deletes your business, Booking Hours, bookings, user registration, and active sessions. You will be signed out. This cannot be undone.",
+          acknowledge:
+            "I understand that my business and user registration will be permanently deleted.",
+          back: "Cancel",
+          confirm: "Permanently delete everything",
+          deleting: "Deleting everything...",
+          error:
+            "Your business could not be deleted. Nothing has changed. Try again.",
+        },
+      },
     },
     terms: {
       meta: {

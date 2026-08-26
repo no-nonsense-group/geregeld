@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Play } from "lucide-react";
+import { CheckCircle2, Play } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AppControls } from "#/components/app-controls";
 import { Brand } from "#/components/brand";
@@ -14,6 +15,18 @@ function Home() {
   const lang = resolveUiLocale(Route.useSearch().lang);
   const copy = landingCopy[lang];
   const getStartedHref = `/register?lang=${lang}`;
+  const [deleted, setDeleted] = useState(false);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("deleted") !== "1") {
+      return;
+    }
+
+    setDeleted(true);
+    url.searchParams.delete("deleted");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
 
   return (
     <div className="min-h-screen overflow-hidden bg-background text-foreground">
@@ -81,6 +94,17 @@ function Home() {
       </header>
 
       <main id="main">
+        {deleted ? (
+          <output className="block border-primary/20 border-b bg-primary/8">
+            <div className="mx-auto flex w-full max-w-[86rem] items-center gap-3 px-5 py-3 font-medium text-sm sm:px-8 lg:px-12">
+              <CheckCircle2
+                aria-hidden="true"
+                className="size-5 shrink-0 text-primary"
+              />
+              {copy.deletionNotice}
+            </div>
+          </output>
+        ) : null}
         <section className="relative border-border border-b bg-[radial-gradient(circle_at_82%_42%,oklch(0.91_0.055_149/0.68),transparent_34%)]">
           <div className="mx-auto grid min-h-[calc(100svh-4.5rem)] w-full max-w-[86rem] items-center gap-14 px-5 py-16 sm:px-8 lg:grid-cols-[0.95fr_1.05fr] lg:px-12 lg:py-20">
             <div className="max-w-3xl">
