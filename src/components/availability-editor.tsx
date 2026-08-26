@@ -678,9 +678,6 @@ export function AvailabilityEditor({
       <h1 className="text-balance font-heading font-semibold text-4xl tracking-[-0.055em] sm:text-5xl">
         {copy.title}
       </h1>
-      <p className="mt-2 text-muted-foreground text-sm">
-        {copy.timeZone} <strong>{timeZone.replaceAll("_", " ")}</strong>
-      </p>
 
       <div className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-[0_24px_60px_-46px_oklch(0.23_0.035_151/0.4)]">
         <div className="border-border border-b px-5 py-4 sm:px-6">
