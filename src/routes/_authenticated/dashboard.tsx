@@ -75,7 +75,7 @@ function DashboardPage() {
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-border border-b bg-card/80 backdrop-blur">
         <div className="mx-auto grid h-18 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-5 sm:px-8">
-          <a href={`/?lang=${lang}`} className="w-fit">
+          <a href={`/dashboard?lang=${lang}`} className="w-fit">
             <Brand />
           </a>
 

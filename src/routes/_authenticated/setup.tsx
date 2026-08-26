@@ -99,7 +99,7 @@ function SetupPage() {
       />
       <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
         <div className="flex items-center justify-between gap-4">
-          <a href={`/?lang=${lang}`} className="w-fit">
+          <a href={`/dashboard?lang=${lang}`} className="w-fit">
             <Brand />
           </a>
           <AppControls authenticated locale={lang} />
