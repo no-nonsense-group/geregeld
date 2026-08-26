@@ -16,6 +16,7 @@ import {
   replaceWeeklyBookingHours,
   upsertBookingHoursDateException,
   upsertBookingHoursDateRange,
+  upsertBookingHoursDates,
 } from "./workflow";
 
 const organizationId = OrganizationId.make("organization-1");
@@ -243,6 +244,31 @@ it.effect("saves one Schedule Change for every date in a range", () => {
       "2026-08-29",
     ]);
     expect(gateway.exceptionUpserts).toHaveLength(3);
+  }).pipe(Effect.provide(gateway.layer));
+});
+
+it.effect("saves separate dates without changing the days between them", () => {
+  const gateway = makeGateway();
+
+  return Effect.gen(function* () {
+    const result = yield* upsertBookingHoursDates(
+      organizationId,
+      timeZone,
+      {
+        dates: ["2026-08-31", "2026-09-02"],
+        windows: [],
+      },
+      now,
+    );
+
+    expect(result.map((item) => item.date)).toEqual([
+      "2026-08-31",
+      "2026-09-02",
+    ]);
+    expect(gateway.exceptionUpserts).toEqual([
+      { organizationId, date: "2026-08-31", windows: [] },
+      { organizationId, date: "2026-09-02", windows: [] },
+    ]);
   }).pipe(Effect.provide(gateway.layer));
 });
 

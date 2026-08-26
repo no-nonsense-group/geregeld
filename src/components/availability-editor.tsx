@@ -21,10 +21,11 @@ import {
   deleteBookingHoursDateExceptionFn,
   getAvailabilityFn,
   replaceWeeklyBookingHoursFn,
-  upsertBookingHoursDateRangeFn,
+  upsertBookingHoursDatesFn,
 } from "#/contexts/availability/slices/manage-availability/functions";
 import {
   addLocalDays,
+  isLocalDate,
   localDateDayOfWeek,
   localDateToEpochDay,
 } from "#/contexts/availability/slices/manage-availability/local-date";
@@ -50,6 +51,11 @@ interface AvailabilityEditorProps {
   readonly onSaved: () => Promise<void>;
 }
 
+interface AdditionalDate {
+  readonly id: number;
+  readonly date: string;
+}
+
 type EditorError = "INVALID_INPUT" | "UNAVAILABLE";
 
 const dayOrder = [1, 2, 3, 4, 5, 6, 0] as const;
@@ -59,6 +65,7 @@ const defaultWindow: TimeWindow = {
 };
 const startOptions = Array.from({ length: 96 }, (_, index) => index * 15);
 const endOptions = Array.from({ length: 96 }, (_, index) => (index + 1) * 15);
+let nextAdditionalDateId = 0;
 
 function minuteLabel(minute: number): string {
   if (minute === 1440) return "24:00";
@@ -203,7 +210,6 @@ export function AvailabilityEditor({
   copy,
   initial,
   lang,
-  timeZone,
   onSaved,
 }: AvailabilityEditorProps) {
   const [configured, setConfigured] = useState(initial.configured);
@@ -238,6 +244,9 @@ export function AvailabilityEditor({
   const [dateFormOpen, setDateFormOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState(initial.localToday);
   const [dateTo, setDateTo] = useState("");
+  const [additionalDates, setAdditionalDates] = useState<Array<AdditionalDate>>(
+    [],
+  );
   const [dateAvailable, setDateAvailable] = useState(false);
   const [dateWindows, setDateWindows] = useState<Array<TimeWindow>>([]);
   const [isSavingWeek, setIsSavingWeek] = useState(false);
@@ -269,12 +278,18 @@ export function AvailabilityEditor({
     (exception) => exception.date === dateFrom,
   );
   const dateRangeInvalid =
+    !isLocalDate(dateFrom) ||
     dateFrom < initial.localToday ||
     (dateTo.length > 0 &&
-      (dateTo < dateFrom ||
+      (!isLocalDate(dateTo) ||
+        dateTo < dateFrom ||
         localDateToEpochDay(dateTo) - localDateToEpochDay(dateFrom) > 365));
+  const additionalDatesInvalid = additionalDates.some(
+    ({ date }) => !isLocalDate(date) || date < initial.localToday,
+  );
   const dateInvalid =
     dateRangeInvalid ||
+    additionalDatesInvalid ||
     (dateAvailable &&
       (dateWindows.length === 0 || !windowsAreValid(dateWindows)));
   const nextException = useMemo(
@@ -452,6 +467,7 @@ export function AvailabilityEditor({
     setDateFormOpen(true);
     setDateFrom(initial.localToday);
     setDateTo("");
+    setAdditionalDates([]);
     const current = exceptions.find(
       (exception) => exception.date === initial.localToday,
     );
@@ -498,10 +514,24 @@ export function AvailabilityEditor({
     setIsSavingDate(true);
     clearStatus();
     try {
-      const result = await upsertBookingHoursDateRangeFn({
+      const rangeEnd = dateTo || dateFrom;
+      const dates = Array.from(
+        new Set([
+          ...Array.from(
+            {
+              length:
+                localDateToEpochDay(rangeEnd) -
+                localDateToEpochDay(dateFrom) +
+                1,
+            },
+            (_, index) => addLocalDays(dateFrom, index),
+          ),
+          ...additionalDates.map(({ date }) => date),
+        ]),
+      ).sort();
+      const result = await upsertBookingHoursDatesFn({
         data: {
-          from: dateFrom,
-          to: dateTo || dateFrom,
+          dates,
           windows: dateAvailable ? sortWindows(dateWindows) : [],
         },
       });
@@ -527,7 +557,7 @@ export function AvailabilityEditor({
   }
 
   async function restoreDate() {
-    if (!selectedException || dateTo) return;
+    if (!selectedException || dateTo || additionalDates.length > 0) return;
     setIsRestoringDate(true);
     clearStatus();
     try {
@@ -845,6 +875,65 @@ export function AvailabilityEditor({
                 />
               </label>
             </div>
+            {additionalDates.map((additionalDate) => (
+              <div
+                key={additionalDate.id}
+                className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:max-w-[calc(50%-0.5rem)]"
+              >
+                <label>
+                  <span className="font-semibold text-sm">
+                    {copy.anotherDate}
+                  </span>
+                  <input
+                    type="date"
+                    min={initial.localToday}
+                    max="2099-12-31"
+                    value={additionalDate.date}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setAdditionalDates((current) =>
+                        current.map((item) =>
+                          item.id === additionalDate.id
+                            ? { ...item, date: value }
+                            : item,
+                        ),
+                      );
+                      clearStatus();
+                    }}
+                    className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setAdditionalDates((current) =>
+                      current.filter((item) => item.id !== additionalDate.id),
+                    );
+                    clearStatus();
+                  }}
+                  aria-label={copy.removeDate}
+                  className="mb-0.5 text-muted-foreground"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setAdditionalDates((current) => [
+                  ...current,
+                  { id: nextAdditionalDateId++, date: "" },
+                ]);
+                clearStatus();
+              }}
+              className="mt-4 inline-flex items-center gap-2 font-semibold text-primary text-sm outline-none hover:underline focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/30"
+            >
+              <Plus aria-hidden="true" className="size-4" />
+              {copy.addAnotherDate}
+            </button>
             <fieldset className="mt-6">
               <legend className="font-semibold text-sm">{copy.canBook}</legend>
               <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1">
@@ -897,7 +986,7 @@ export function AvailabilityEditor({
                 </button>
               </div>
             ) : null}
-            {selectedException && !dateTo ? (
+            {selectedException && !dateTo && additionalDates.length === 0 ? (
               <Button
                 type="button"
                 variant="ghost"

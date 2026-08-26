@@ -22,6 +22,7 @@ import {
 const latestDate = "2099-12-31";
 const maximumWeeklyWindows = 50;
 const maximumExceptionWindows = 20;
+const maximumExceptionDates = 366;
 
 function isIntegerBetween(
   value: unknown,
@@ -299,6 +300,49 @@ export function upsertBookingHoursDateRange(
       windows,
     });
   }).pipe(Effect.withSpan("availability.upsertDateRange"));
+}
+
+export function upsertBookingHoursDates(
+  organizationId: OrganizationId,
+  timeZone: IanaTimeZone,
+  input: unknown,
+  now = new Date(),
+) {
+  return Effect.gen(function* () {
+    if (!input || typeof input !== "object") {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    const candidate = input as Record<string, unknown>;
+    const windows = decodeWindowArray(
+      candidate.windows,
+      maximumExceptionWindows,
+    );
+    const today = localNow(timeZone, now).date;
+    if (
+      !Array.isArray(candidate.dates) ||
+      candidate.dates.length === 0 ||
+      candidate.dates.length > maximumExceptionDates ||
+      !windows
+    ) {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    if (!candidate.dates.every(isLocalDate)) {
+      return yield* new InvalidAvailabilityInput();
+    }
+    const dates: Array<string> = [...new Set(candidate.dates)];
+    if (dates.some((date) => date < today || date > latestDate)) {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    const gateway = yield* AvailabilityGateway;
+    return yield* gateway.upsertDateExceptions({
+      organizationId,
+      dates,
+      windows,
+    });
+  }).pipe(Effect.withSpan("availability.upsertDates"));
 }
 
 export function deleteBookingHoursDateException(
