@@ -1,8 +1,9 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { CalendarDays, ChevronDown, Clock3 } from "lucide-react";
 import { useState } from "react";
-
+import { AppControls } from "#/components/app-controls";
 import { AvailabilityEditor } from "#/components/availability-editor";
+import { Brand } from "#/components/brand";
 import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
 import { getAvailabilityFn } from "#/contexts/availability/slices/manage-availability/functions";
@@ -67,17 +68,17 @@ function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-card/80 py-5 pr-52 pl-5 backdrop-blur sm:pl-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <a
-            href={`/?lang=${lang}`}
-            className="font-heading font-semibold text-xl tracking-[-0.04em]"
-          >
-            Geregeld
+      <header className="border-border border-b bg-card/80 backdrop-blur">
+        <div className="mx-auto grid h-18 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-5 sm:px-8">
+           <a href={`/?lang=${lang}`} className="w-fit">
+            <Brand />
           </a>
-          <span className="hidden max-w-64 truncate rounded-full bg-muted px-4 py-2 font-semibold text-sm sm:inline">
-            {organization.name}
-          </span>
+
+          <AppControls
+            authenticated
+            locale={lang}
+            className="justify-self-end"
+          />
         </div>
       </header>
 

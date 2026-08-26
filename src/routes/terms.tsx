@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { AppControls } from "#/components/app-controls";
+import { Brand } from "#/components/brand";
 import { organizationCopy } from "#/content/organization";
 import { resolveUiLocale } from "#/shared/i18n";
 
@@ -24,12 +26,12 @@ function TermsPage() {
   return (
     <main className="min-h-screen bg-background px-5 py-8 text-foreground sm:px-8">
       <div className="mx-auto max-w-3xl">
-        <a
-          href={`/?lang=${lang}`}
-          className="font-heading font-semibold text-xl tracking-[-0.04em]"
-        >
-          Geregeld
-        </a>
+        <div className="flex items-center justify-between gap-4">
+          <a href={`/?lang=${lang}`}>
+            <Brand />
+          </a>
+          <AppControls authenticated={false} locale={lang} />
+        </div>
 
         <article className="mt-16 rounded-3xl border border-border bg-card p-7 sm:p-10">
           <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">

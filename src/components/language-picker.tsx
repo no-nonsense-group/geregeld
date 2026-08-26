@@ -1,22 +1,19 @@
+import { Menu } from "@base-ui/react/menu";
 import { useLocation } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 
 import { type UiLocale, uiLocaleStorageKey, uiLocales } from "#/shared/i18n";
 
 const localeDetails = {
   nl: {
-    fallback: "NL",
     flagSrc: "/flags/netherlands.svg",
-    label: "Nederlands",
+    label: "Nederlands"
   },
   en: {
-    fallback: "EN",
     flagSrc: "/flags/united-kingdom.svg",
-    label: "English",
+    label: "English"
   },
-} as const satisfies Record<
-  UiLocale,
-  { fallback: string; flagSrc: string; label: string }
->;
+} as const satisfies Record<UiLocale, { flagSrc: string; label: string }>;
 
 function storeLocalePreference(locale: UiLocale) {
   try {
@@ -28,6 +25,7 @@ function storeLocalePreference(locale: UiLocale) {
 
 export function LanguagePicker({ locale }: { locale: UiLocale }) {
   const location = useLocation();
+  const selectedLocale = localeDetails[locale];
 
   function hrefFor(nextLocale: UiLocale): string {
     const search = new URLSearchParams(location.searchStr);
@@ -36,38 +34,52 @@ export function LanguagePicker({ locale }: { locale: UiLocale }) {
   }
 
   return (
-    <fieldset className="flex items-center gap-0.5">
-      <legend className="sr-only">Language</legend>
-      {uiLocales.map((nextLocale) => {
-        const details = localeDetails[nextLocale];
+    <Menu.Root>
+      <Menu.Trigger
+        aria-label={`Language: ${selectedLocale.label}`}
+        className="flex h-10 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors hover:bg-muted data-popup-open:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
+      >
+        <img src={selectedLocale.flagSrc} alt="" className="h-4.5 w-6" />
+        <ChevronDown
+          aria-hidden="true"
+          className="size-4 text-muted-foreground"
+        />
+      </Menu.Trigger>
 
-        return (
-          <a
-            key={nextLocale}
-            href={hrefFor(nextLocale)}
-            lang={nextLocale}
-            hrefLang={nextLocale}
-            aria-label={details.label}
-            aria-current={locale === nextLocale ? "page" : undefined}
-            title={details.label}
-            onClick={() => storeLocalePreference(nextLocale)}
-            className="grid size-9 place-items-center rounded-full leading-none transition hover:bg-muted aria-[current=page]:bg-foreground/9 aria-[current=page]:ring-1 aria-[current=page]:ring-foreground/15"
-          >
-            <span className="sr-only">{details.label}</span>
-            <span
-              aria-hidden="true"
-              className="relative grid h-[1.125rem] w-6 place-items-center font-semibold text-[0.6rem] tracking-[-0.02em]"
-            >
-              {details.fallback}
-              <img
-                src={details.flagSrc}
-                alt=""
-                className="absolute inset-0 size-full"
-              />
-            </span>
-          </a>
-        );
-      })}
-    </fieldset>
+      <Menu.Portal>
+        <Menu.Positioner
+          align="end"
+          sideOffset={6}
+          className="z-50 outline-hidden"
+        >
+          <Menu.Popup className="min-w-40 rounded-xl border border-border bg-popover p-1 text-popover-foreground outline-hidden">
+            {uiLocales.map((nextLocale) => {
+              const details = localeDetails[nextLocale];
+
+              return (
+                <Menu.LinkItem
+                  key={nextLocale}
+                  href={hrefFor(nextLocale)}
+                  lang={nextLocale}
+                  hrefLang={nextLocale}
+                  aria-current={locale === nextLocale ? "page" : undefined}
+                  label={details.label}
+                  closeOnClick
+                  onClick={() => storeLocalePreference(nextLocale)}
+                  className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm outline-hidden transition-colors data-highlighted:bg-muted aria-[current=page]:font-semibold"
+                >
+                  <img
+                    src={details.flagSrc}
+                    alt=""
+                    className="h-4.5 w-6"
+                  />
+                  {details.label}
+                </Menu.LinkItem>
+              );
+            })}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }

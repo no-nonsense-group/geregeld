@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 
+import { AppControls } from "#/components/app-controls";
+import { Brand } from "#/components/brand";
 import { landingCopy } from "#/content/landing";
 import { resolveUiLocale } from "#/shared/i18n";
 
@@ -23,17 +25,17 @@ function Home() {
       </a>
 
       <header className="relative z-20 border-border border-b bg-background/92 backdrop-blur-xl">
-        <div className="mx-auto flex h-[4.5rem] w-full max-w-[86rem] items-center gap-4 pr-28 pl-5 sm:pr-32 sm:pl-8 lg:pl-12">
+        <div className="mx-auto grid h-[4.5rem] w-full max-w-[86rem] grid-cols-[1fr_auto] items-center gap-4 px-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-12">
           <a
             href={`/?lang=${lang}`}
-            className="shrink-0 font-heading font-semibold text-xl tracking-[-0.04em]"
+            className="w-fit shrink-0"
             aria-label={copy.controls.home}
           >
-            Geregeld
+            <Brand />
           </a>
 
           <nav
-            className="mx-auto hidden items-center gap-7 text-muted-foreground text-sm lg:flex"
+            className="hidden items-center gap-7 text-muted-foreground text-sm lg:flex"
             aria-label="Primary"
           >
             <a
@@ -56,7 +58,7 @@ function Home() {
             </a>
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 sm:gap-3 lg:ml-0">
+          <div className="flex items-center justify-end gap-2 sm:gap-3">
             <a
               className="hidden min-h-10 items-center justify-center rounded-full px-3 font-semibold text-sm transition-colors hover:bg-muted sm:inline-flex"
               href={`/login?lang=${lang}`}
@@ -64,11 +66,16 @@ function Home() {
               {copy.actions.login}
             </a>
             <a
-              className="inline-flex min-h-10 items-center justify-center rounded-full bg-foreground px-4 font-semibold text-background text-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
+              className="hidden min-h-10 items-center justify-center rounded-full bg-foreground px-4 font-semibold text-background text-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/35 sm:inline-flex"
               href={getStartedHref}
             >
               {copy.actions.getStarted}
             </a>
+            <span
+              className="hidden h-6 w-px bg-border sm:block"
+              aria-hidden="true"
+            />
+            <AppControls authenticated={false} locale={lang} />
           </div>
         </div>
       </header>
@@ -214,9 +221,10 @@ function Home() {
 
       <footer>
         <div className="mx-auto flex w-full max-w-[86rem] flex-col gap-4 px-5 py-7 text-muted-foreground text-sm sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
-          <span className="font-heading font-semibold text-foreground">
-            Geregeld
-          </span>
+          <Brand
+            className="text-foreground text-base"
+            markClassName="size-5 text-primary"
+          />
           <p>© 2026 No Nonsense Group</p>
         </div>
       </footer>

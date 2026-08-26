@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Mail } from "lucide-react";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
+import { AppControls } from "#/components/app-controls";
+import { Brand } from "#/components/brand";
 import { Button } from "#/components/ui/button";
 import { registrationCopy } from "#/content/registration";
 import {
@@ -126,13 +128,16 @@ function RegistrationPage() {
         aria-hidden="true"
       />
       <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
-        <a
-          href={`/?lang=${lang}`}
-          className="w-fit font-heading font-semibold text-xl tracking-[-0.04em]"
-          aria-label={copy.brandLabel}
-        >
-          Geregeld
-        </a>
+        <div className="flex items-center justify-between gap-4">
+          <a
+            href={`/?lang=${lang}`}
+            className="w-fit"
+            aria-label={copy.brandLabel}
+          >
+            <Brand />
+          </a>
+          <AppControls authenticated={false} locale={lang} />
+        </div>
 
         <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[1fr_30rem] lg:py-16">
           <section className="max-w-2xl">

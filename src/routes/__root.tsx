@@ -3,11 +3,9 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
-  useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
-import { AppControls } from "#/components/app-controls";
 import { landingCopy } from "#/content/landing";
 import type { RouterContext } from "#/router";
 import { isUiLocale, resolveUiLocale, uiLocaleStorageKey } from "#/shared/i18n";
@@ -99,6 +97,11 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       ],
       links: [
         {
+          rel: "icon",
+          href: "/logo-mark.svg",
+          type: "image/svg+xml",
+        },
+        {
           rel: "stylesheet",
           href: appCss,
         },
@@ -111,11 +114,6 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootDocument({ children }: { children: React.ReactNode }) {
   const { lang: requestedLanguage } = Route.useSearch();
   const lang = resolveUiLocale(requestedLanguage);
-  const authenticated = useRouterState({
-    select: (state) =>
-      state.matches.some((match) => match.routeId === "/_authenticated"),
-  });
-
   return (
     <html
       lang={lang}
@@ -127,7 +125,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="min-w-80 bg-background text-foreground [text-rendering:optimizeLegibility]">
-        <AppControls authenticated={authenticated} locale={lang} />
         {children}
         <TanStackDevtools
           config={{
