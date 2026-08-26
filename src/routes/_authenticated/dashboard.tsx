@@ -68,9 +68,20 @@ function weeklySummary(
   );
 
   if (!sameHours) {
+    const nextDay = availability.days.find((day) => day.windows.length > 0);
+    const nextHours = nextDay?.windows
+      .map(
+        (window) =>
+          `${minuteLabel(window.startMinute)} – ${minuteLabel(window.endMinute)}`,
+      )
+      .join(", ");
+
     return {
       title: copy.availabilityConfigured(openIndexes.length),
-      detail: copy.availabilitySchedule,
+      detail:
+        nextDay && nextHours
+          ? `${nextDay.date === availability.localToday ? copy.today : shortDate(nextDay.date, lang)} · ${nextHours}`
+          : copy.availabilityClosed,
     };
   }
 
