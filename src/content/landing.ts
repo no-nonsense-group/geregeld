@@ -25,26 +25,22 @@ export const landingCopy = {
       subject: "Aan de slag met Geregeld",
     },
     hero: {
-      offer: "1 maand gratis voor iedereen",
-      title: "Bookings. Gewoon geregeld.",
+      offer: "Eerste maand GRATIS, daarna €10",
+      title: "Bookings, zonder gedoe.",
       description:
-        "Rustige bookingsoftware voor zelfstandige bedrijven. Snel te begrijpen, prettig om elke dag te gebruiken.",
-      priceNote: "Daarna €10 per maand. Geen kosten per booking.",
+        "Voor kleine bedrijven die op afspraak werken. Stel je uren in, deel je link en laat klanten zelf boeken.",
     },
     demo: {
       label: "Tijdelijke plek voor de productdemo",
-      title: "Bekijk hoe Geregeld werkt",
-      status: "Demo volgt binnenkort",
-      duration: "Producttour · 2 min",
+      status: "Demo volgt binnenkort"
     },
     overview: {
-      eyebrow: "Geregeld in het kort",
-      title: "Alles wat je moet weten.",
+      title: "Wat is het?",
       howItWorks: {
         title: "Hoe het werkt",
         steps: [
           "Stel je beschikbaarheid in.",
-          "Deel je persoonlijke bookinglink.",
+          "Deel een bookinglink of integreer Geregeld in je app of website.",
           "Beheer bookings en klantgegevens op één plek.",
         ],
       },
@@ -52,8 +48,7 @@ export const landingCopy = {
         title: "Prijzen",
         offer: "Eerste maand €0",
         price: "Daarna €10 per maand",
-        detail:
-          "Alles inbegrepen. Geen kosten per booking. Maandelijks opzegbaar. Of €100 per jaar.",
+        detail: "Geen verborgen kosten. Maandelijks opzegbaar.",
       },
       about: {
         title: "Over ons",
@@ -86,26 +81,22 @@ export const landingCopy = {
       subject: "Get started with Geregeld",
     },
     hero: {
-      offer: "1 month free for everyone",
-      title: "Booking. Simply handled.",
+      offer: "First month FREE, then €10",
+      title: "Bookings, without the busywork.",
       description:
-        "Calm booking software for independent businesses. Quick to understand and pleasant to use every day.",
-      priceNote: "Then €10 a month. No per-booking fees.",
+        "For small businesses that run on appointments. Set your hours, share your link, and let customers book for themselves.",
     },
     demo: {
       label: "Temporary product demo placeholder",
-      title: "See how Geregeld works",
-      status: "Demo coming soon",
-      duration: "Product tour · 2 min",
+      status: "Demo coming soon"
     },
     overview: {
-      eyebrow: "Geregeld at a glance",
-      title: "Everything you need to know.",
+      title: "What is it?",
       howItWorks: {
         title: "How it works",
         steps: [
           "Set your availability.",
-          "Share your personal booking link.",
+          "Share a booking link or integrate Geregeld into your app/site.",
           "Manage bookings and client details in one place.",
         ],
       },
@@ -113,8 +104,7 @@ export const landingCopy = {
         title: "Pricing",
         offer: "First month €0",
         price: "Then €10 a month",
-        detail:
-          "Everything included. No per-booking fees. Cancel any month. Or €100 a year.",
+        detail: "No hidden costs. Cancel any month.",
       },
       about: {
         title: "About us",

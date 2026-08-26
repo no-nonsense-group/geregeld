@@ -107,9 +107,6 @@ function Home() {
                   {copy.actions.login}
                 </a>
               </div>
-              <p className="mt-4 text-muted-foreground text-sm">
-                {copy.hero.priceNote}
-              </p>
             </div>
 
             <figure className="mx-auto w-full max-w-[44rem] lg:ml-auto">
@@ -138,28 +135,19 @@ function Home() {
                         className="ml-1 size-5 fill-current"
                       />
                     </span>
-                    <p className="mt-5 font-heading font-semibold text-2xl tracking-[-0.04em] sm:text-3xl">
-                      {copy.demo.title}
-                    </p>
                     <p className="mt-2 text-foreground/58 text-sm">
                       {copy.demo.status}
                     </p>
                   </div>
                 </div>
               </div>
-              <figcaption className="mt-3 text-right text-muted-foreground text-xs">
-                {copy.demo.duration}
-              </figcaption>
             </figure>
           </div>
         </section>
 
         <section className="bg-foreground text-background">
-          <div className="mx-auto w-full max-w-[86rem] px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+          <div className="mx-auto w-full max-w-344 px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
             <div className="max-w-3xl">
-              <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
-                {copy.overview.eyebrow}
-              </p>
               <h2 className="mt-4 text-balance font-heading font-semibold text-5xl leading-[0.96] tracking-[-0.055em] sm:text-7xl">
                 {copy.overview.title}
               </h2>
@@ -176,8 +164,8 @@ function Home() {
                       key={step}
                       className="flex gap-4 text-background/72 leading-relaxed"
                     >
-                      <span className="font-semibold text-primary text-sm">
-                        0{index + 1}
+                      <span className="font-semibold text-primary text-sm pt-1">
+                        {index + 1}
                       </span>
                       <span>{step}</span>
                     </li>
