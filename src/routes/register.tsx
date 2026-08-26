@@ -141,9 +141,6 @@ function RegistrationPage() {
 
         <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[1fr_30rem] lg:py-16">
           <section className="max-w-2xl">
-            <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
-              {copy.eyebrow}
-            </p>
             <h1 className="mt-5 text-balance font-heading font-semibold text-5xl leading-[0.94] tracking-[-0.06em] sm:text-7xl">
               {step === "email" ? copy.title : copy.codeTitle}
             </h1>

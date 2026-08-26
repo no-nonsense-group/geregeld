@@ -70,7 +70,7 @@ function DashboardPage() {
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-border border-b bg-card/80 backdrop-blur">
         <div className="mx-auto grid h-18 max-w-6xl grid-cols-[1fr_auto] items-center gap-4 px-5 sm:px-8">
-           <a href={`/?lang=${lang}`} className="w-fit">
+          <a href={`/?lang=${lang}`} className="w-fit">
             <Brand />
           </a>
 
@@ -83,11 +83,12 @@ function DashboardPage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-        <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
-          {copy.eyebrow}
-        </p>
         <h1 className="mt-4 max-w-3xl text-balance font-heading font-semibold text-4xl tracking-[-0.055em] sm:text-6xl">
-          {copy.title(organization.name)}
+          {copy.titleLead}{" "}
+          <span className="font-bold text-primary [text-shadow:0_2px_18px_oklch(0.64_0.15_151/0.28)]">
+            {organization.name}
+          </span>
+          .
         </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted-foreground leading-relaxed">
           {copy.description}
