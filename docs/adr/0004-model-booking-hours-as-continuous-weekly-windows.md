@@ -16,10 +16,11 @@ hours and offers only start times where the Service and its buffers fit inside
 one uninterrupted span. The Start Interval controls how often candidate start
 times occur and is independent of Service duration.
 
-The Owner interface uses weekday rows with start and end time fields, optional
-split hours, and a separate list of Date Exceptions. It does not use a drawing
-control, a default availability duration, a materialization date range, or
-counts of fixed periods.
+The Owner interface presents this as Availability. It shows one time range per
+weekday by default, reveals split hours only while editing a day, and uses one
+flow to change a specific date or date range. The interface does not expose the
+Date Exception term, use a drawing control, ask for a default availability
+duration, materialize a schedule range, or count fixed periods.
 
 Capacity is a separate concern. This decision supports an initial
 single-capacity Organization while leaving staff, rooms, tables, and other

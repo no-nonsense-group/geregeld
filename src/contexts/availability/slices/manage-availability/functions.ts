@@ -23,6 +23,7 @@ import {
   getAvailabilityOverview,
   replaceWeeklyBookingHours,
   upsertBookingHoursDateException,
+  upsertBookingHoursDateRange,
 } from "./workflow";
 
 type AvailabilityActionError =
@@ -117,6 +118,22 @@ export const upsertBookingHoursDateExceptionFn = createServerFn({
       currentOrganization().pipe(
         Effect.flatMap((organization) =>
           upsertBookingHoursDateException(
+            organization.id,
+            organization.timeZone,
+            data,
+          ),
+        ),
+      ),
+    ),
+  );
+
+export const upsertBookingHoursDateRangeFn = createServerFn({ method: "POST" })
+  .validator((input: unknown) => input)
+  .handler(({ data }) =>
+    runAction(
+      currentOrganization().pipe(
+        Effect.flatMap((organization) =>
+          upsertBookingHoursDateRange(
             organization.id,
             organization.timeZone,
             data,

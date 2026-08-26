@@ -1,18 +1,96 @@
-import {
-  createFileRoute,
-  Link,
-  redirect,
-  useRouter,
-} from "@tanstack/react-router";
-import { CalendarDays, ChevronDown, Clock3, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { ArrowRight, CalendarDays, Clock3, Settings2 } from "lucide-react";
+
 import { AppControls } from "#/components/app-controls";
-import { AvailabilityEditor } from "#/components/availability-editor";
 import { Brand } from "#/components/brand";
-import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
+import type { AvailabilityOverview } from "#/contexts/availability/slices/manage-availability/contract";
 import { getAvailabilityFn } from "#/contexts/availability/slices/manage-availability/functions";
-import { resolveUiLocale } from "#/shared/i18n";
+import { addLocalDays } from "#/contexts/availability/slices/manage-availability/local-date";
+import { resolveUiLocale, type UiLocale } from "#/shared/i18n";
+
+const dayOrder = [1, 2, 3, 4, 5, 6, 0] as const;
+
+function minuteLabel(minute: number): string {
+  if (minute === 1440) return "24:00";
+  return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(
+    minute % 60,
+  ).padStart(2, "0")}`;
+}
+
+function dayName(dayIndex: number, lang: UiLocale): string {
+  return new Intl.DateTimeFormat(lang, {
+    timeZone: "UTC",
+    weekday: "long",
+  }).format(new Date(Date.UTC(2024, 0, 1 + dayIndex)));
+}
+
+function shortDate(date: string, lang: UiLocale): string {
+  return new Intl.DateTimeFormat(lang, {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(new Date(`${date}T12:00:00.000Z`));
+}
+
+function weeklySummary(
+  availability: AvailabilityOverview,
+  lang: UiLocale,
+  copy: (typeof organizationCopy)["en"]["dashboard"],
+): { readonly title: string; readonly detail: string } {
+  const windowsByDay = dayOrder.map((dayOfWeek) =>
+    availability.weeklyHours
+      .filter((window) => window.dayOfWeek === dayOfWeek)
+      .sort((left, right) => left.startMinute - right.startMinute),
+  );
+  const openIndexes = windowsByDay.flatMap((windows, index) =>
+    windows.length > 0 ? [index] : [],
+  );
+
+  if (openIndexes.length === 0) {
+    return {
+      title: copy.availabilityNoUpcoming,
+      detail: copy.availabilityClosed,
+    };
+  }
+
+  const signatures = openIndexes.map((index) =>
+    windowsByDay[index]
+      .map((window) => `${window.startMinute}-${window.endMinute}`)
+      .join(","),
+  );
+  const sameHours = signatures.every(
+    (signature) => signature === signatures[0],
+  );
+  const consecutive = openIndexes.every(
+    (dayIndex, index) => index === 0 || dayIndex === openIndexes[index - 1] + 1,
+  );
+
+  if (!sameHours) {
+    return {
+      title: copy.availabilityConfigured(openIndexes.length),
+      detail: copy.availabilitySchedule,
+    };
+  }
+
+  const names = openIndexes.map((index) => dayName(index, lang));
+  const title =
+    consecutive && names.length > 1
+      ? copy.dayRange(names[0], names.at(-1) ?? names[0])
+      : new Intl.ListFormat(lang, {
+          style: "long",
+          type: "conjunction",
+        }).format(names);
+  const detail = windowsByDay[openIndexes[0]]
+    .map(
+      (window) =>
+        `${minuteLabel(window.startMinute)} – ${minuteLabel(window.endMinute)}`,
+    )
+    .join(", ");
+
+  return { title, detail };
+}
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
@@ -31,16 +109,30 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       };
     }
 
-    const availability = await getAvailabilityFn({ data: {} });
+    const initial = await getAvailabilityFn({ data: {} });
+    if (!initial.ok) {
+      return {
+        organization: state.organization,
+        availability: undefined,
+        unavailable: false as const,
+      };
+    }
+
+    const expanded = await getAvailabilityFn({
+      data: {
+        from: initial.value.localToday,
+        to: addLocalDays(initial.value.localToday, 365),
+      },
+    });
+
     return {
       organization: state.organization,
-      availability: availability.ok ? availability.value : undefined,
+      availability: expanded.ok ? expanded.value : initial.value,
       unavailable: false as const,
     };
   },
   head: ({ match }) => {
     const copy = organizationCopy[resolveUiLocale(match.search.lang)].dashboard;
-
     return {
       meta: [
         { title: copy.meta.title },
@@ -56,10 +148,6 @@ function DashboardPage() {
   const { organization, availability, unavailable } = Route.useLoaderData();
   const allCopy = organizationCopy[lang];
   const copy = allCopy.dashboard;
-  const router = useRouter();
-  const [editorOpen, setEditorOpen] = useState(false);
-  const weekDays = availability?.days.slice(0, 7) ?? [];
-  const openDayCount = weekDays.filter((day) => day.windows.length > 0).length;
 
   if (unavailable || !organization) {
     return (
@@ -71,6 +159,22 @@ function DashboardPage() {
     );
   }
 
+  const summary =
+    availability?.configured && availability
+      ? weeklySummary(
+          availability,
+          lang,
+          organizationCopy[lang]
+            .dashboard as (typeof organizationCopy)["en"]["dashboard"],
+        )
+      : {
+          title: copy.availabilityValue,
+          detail: copy.availabilityEmpty,
+        };
+  const nextException = availability?.dateExceptions
+    .filter((exception) => exception.date >= availability.localToday)
+    .sort((left, right) => left.date.localeCompare(right.date))[0];
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-border border-b bg-card/80 backdrop-blur">
@@ -78,7 +182,6 @@ function DashboardPage() {
           <a href={`/dashboard?lang=${lang}`} className="w-fit">
             <Brand />
           </a>
-
           <AppControls
             authenticated
             locale={lang}
@@ -119,78 +222,32 @@ function DashboardPage() {
                 <Clock3 aria-hidden="true" className="size-5" />
               </span>
             </div>
-            <p className="mt-8 font-heading font-semibold text-3xl tracking-[-0.04em]">
-              {!availability?.configured
-                ? copy.availabilityValue
-                : openDayCount === 0
-                  ? copy.availabilityNoUpcoming
-                  : copy.availabilityConfigured(openDayCount)}
+
+            <p className="mt-8 text-balance font-heading font-semibold text-3xl tracking-[-0.04em] capitalize">
+              {summary.title}
             </p>
             <p className="mt-2 text-muted-foreground text-sm">
-              {!availability?.configured
-                ? copy.availabilityEmpty
-                : copy.availabilitySchedule}
+              {summary.detail}
             </p>
 
-            {availability ? (
-              <div className="mt-6">
-                <p className="font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]">
-                  {copy.weekOverview}
-                </p>
-                <div className="mt-3 grid grid-cols-7 gap-1.5">
-                  {weekDays.map((day, index) => {
-                    return (
-                      <div
-                        key={day.date}
-                        className={`rounded-xl px-1 py-2 text-center ${
-                          day.source === "exception"
-                            ? "bg-accent ring-1 ring-primary/20"
-                            : "bg-muted"
-                        }`}
-                        title={day.date}
-                      >
-                        <span className="block text-muted-foreground text-[0.65rem] uppercase">
-                          {copy.weekdaysShort[index]}
-                        </span>
-                        <span className="mt-1 block truncate font-semibold text-[0.7rem]">
-                          {day.windows.length === 0
-                            ? "—"
-                            : day.windows
-                                .map(
-                                  (window) =>
-                                    `${String(Math.floor(window.startMinute / 60)).padStart(2, "0")}:${String(window.startMinute % 60).padStart(2, "0")}–${String(Math.floor(window.endMinute / 60)).padStart(2, "0")}:${String(window.endMinute % 60).padStart(2, "0")}`,
-                                )
-                                .join(", ")}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            {nextException ? (
+              <p className="mt-5 rounded-2xl bg-muted px-4 py-3 text-muted-foreground text-sm">
+                {nextException.windows.length === 0
+                  ? copy.nextClosed(shortDate(nextException.date, lang))
+                  : copy.nextChanged(shortDate(nextException.date, lang))}
+              </p>
             ) : null}
 
-            <Button
-              type="button"
-              className="mt-6 w-full"
-              variant={availability?.configured ? "outline" : "default"}
-              onClick={() => {
-                setEditorOpen((open) => !open);
-                requestAnimationFrame(() =>
-                  document
-                    .querySelector("#availability-editor")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-                );
-              }}
-              disabled={!availability}
-              aria-expanded={editorOpen}
-              aria-controls="availability-editor"
+            <Link
+              to="/availability"
+              search={{ lang }}
+              className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-border bg-input/30 px-4 font-semibold text-sm transition-colors hover:bg-input/50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
             >
-              {editorOpen ? copy.closeAvailability : copy.editAvailability}
-              <ChevronDown
-                aria-hidden="true"
-                className={`transition-transform ${editorOpen ? "rotate-180" : ""}`}
-              />
-            </Button>
+              {availability?.configured
+                ? copy.editAvailability
+                : copy.setAvailability}
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
           </article>
 
           <article className="rounded-3xl border border-border bg-card p-6 shadow-[0_24px_60px_-46px_oklch(0.23_0.035_151/0.4)] sm:p-8">
@@ -210,21 +267,6 @@ function DashboardPage() {
             </p>
           </article>
         </section>
-
-        {editorOpen && availability ? (
-          <div className="mt-5">
-            <AvailabilityEditor
-              copy={copy.availabilityEditor}
-              initial={availability}
-              lang={lang}
-              timeZone={organization.timeZone}
-              onClose={() => setEditorOpen(false)}
-              onSaved={async () => {
-                await router.invalidate();
-              }}
-            />
-          </div>
-        ) : null}
       </div>
     </main>
   );

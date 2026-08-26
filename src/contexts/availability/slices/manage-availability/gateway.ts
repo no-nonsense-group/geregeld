@@ -25,6 +25,14 @@ export interface AvailabilityGatewayService {
     readonly date: string;
     readonly windows: ReadonlyArray<TimeWindow>;
   }) => Effect.Effect<BookingHoursDateException, AvailabilityUnavailable>;
+  readonly upsertDateExceptions: (input: {
+    readonly organizationId: OrganizationId;
+    readonly dates: ReadonlyArray<string>;
+    readonly windows: ReadonlyArray<TimeWindow>;
+  }) => Effect.Effect<
+    ReadonlyArray<BookingHoursDateException>,
+    AvailabilityUnavailable
+  >;
   readonly deleteDateException: (input: {
     readonly organizationId: OrganizationId;
     readonly date: string;

@@ -15,6 +15,7 @@ import {
   getAvailabilityOverview,
   replaceWeeklyBookingHours,
   upsertBookingHoursDateException,
+  upsertBookingHoursDateRange,
 } from "./workflow";
 
 const organizationId = OrganizationId.make("organization-1");
@@ -57,6 +58,23 @@ function makeGateway() {
           date: input.date,
           windows: input.windows,
         };
+      }),
+    upsertDateExceptions: (input) =>
+      Effect.sync(() => {
+        const results = input.dates.map((date, index) => {
+          const item = {
+            organizationId: input.organizationId,
+            date,
+            windows: input.windows,
+          };
+          exceptionUpserts.push(item);
+          return {
+            id: `exception-range-${index}`,
+            date,
+            windows: input.windows,
+          };
+        });
+        return results;
       }),
     deleteDateException: (input) =>
       Effect.sync(() => {
@@ -201,6 +219,30 @@ it.effect("rejects a Date Exception in the past", () => {
 
     expect(error).toBeInstanceOf(InvalidAvailabilityInput);
     expect(gateway.exceptionUpserts).toEqual([]);
+  }).pipe(Effect.provide(gateway.layer));
+});
+
+it.effect("saves one Schedule Change for every date in a range", () => {
+  const gateway = makeGateway();
+
+  return Effect.gen(function* () {
+    const result = yield* upsertBookingHoursDateRange(
+      organizationId,
+      timeZone,
+      {
+        from: "2026-08-27",
+        to: "2026-08-29",
+        windows: [],
+      },
+      now,
+    );
+
+    expect(result.map((item) => item.date)).toEqual([
+      "2026-08-27",
+      "2026-08-28",
+      "2026-08-29",
+    ]);
+    expect(gateway.exceptionUpserts).toHaveLength(3);
   }).pipe(Effect.provide(gateway.layer));
 });
 

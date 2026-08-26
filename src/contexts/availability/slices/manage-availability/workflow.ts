@@ -253,6 +253,54 @@ export function upsertBookingHoursDateException(
   }).pipe(Effect.withSpan("availability.upsertDateException"));
 }
 
+export function upsertBookingHoursDateRange(
+  organizationId: OrganizationId,
+  timeZone: IanaTimeZone,
+  input: unknown,
+  now = new Date(),
+) {
+  return Effect.gen(function* () {
+    if (!input || typeof input !== "object") {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    const candidate = input as Record<string, unknown>;
+    const windows = decodeWindowArray(
+      candidate.windows,
+      maximumExceptionWindows,
+    );
+    const today = localNow(timeZone, now).date;
+    if (
+      !isLocalDate(candidate.from) ||
+      !isLocalDate(candidate.to) ||
+      candidate.from < today ||
+      candidate.to < candidate.from ||
+      candidate.to > latestDate ||
+      localDateToEpochDay(candidate.to) - localDateToEpochDay(candidate.from) >
+        365 ||
+      !windows
+    ) {
+      return yield* new InvalidAvailabilityInput();
+    }
+
+    const dates = Array.from(
+      {
+        length:
+          localDateToEpochDay(candidate.to) -
+          localDateToEpochDay(candidate.from) +
+          1,
+      },
+      (_, index) => addLocalDays(candidate.from as string, index),
+    );
+    const gateway = yield* AvailabilityGateway;
+    return yield* gateway.upsertDateExceptions({
+      organizationId,
+      dates,
+      windows,
+    });
+  }).pipe(Effect.withSpan("availability.upsertDateRange"));
+}
+
 export function deleteBookingHoursDateException(
   organizationId: OrganizationId,
   input: unknown,

@@ -211,6 +211,70 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
           }),
         catch: unavailable,
       }),
+    upsertDateExceptions: (input) =>
+      Effect.tryPromise({
+        try: () =>
+          database.transaction(async (transaction) => {
+            await acquireOrganizationLock(transaction, input.organizationId);
+            const results = [];
+
+            for (const date of input.dates) {
+              const [exception] = await transaction
+                .insert(booking_hours_date_exception)
+                .values({
+                  organizationId: input.organizationId,
+                  date,
+                })
+                .onConflictDoUpdate({
+                  target: [
+                    booking_hours_date_exception.organizationId,
+                    booking_hours_date_exception.date,
+                  ],
+                  set: { updatedAt: new Date() },
+                })
+                .returning({ id: booking_hours_date_exception.id });
+
+              if (!exception) {
+                throw new AvailabilityUnavailable();
+              }
+
+              await transaction
+                .delete(booking_hours_date_exception_window)
+                .where(
+                  eq(
+                    booking_hours_date_exception_window.exceptionId,
+                    exception.id,
+                  ),
+                );
+
+              if (input.windows.length > 0) {
+                await transaction
+                  .insert(booking_hours_date_exception_window)
+                  .values(
+                    input.windows.map((window) => ({
+                      exceptionId: exception.id,
+                      startMinute: window.startMinute,
+                      endMinute: window.endMinute,
+                    })),
+                  );
+              }
+
+              results.push({
+                id: exception.id,
+                date,
+                windows: input.windows,
+              });
+            }
+
+            await transaction
+              .update(organization)
+              .set({ availabilityConfiguredAt: new Date() })
+              .where(eq(organization.id, input.organizationId));
+
+            return results;
+          }),
+        catch: unavailable,
+      }),
     deleteDateException: (input) =>
       Effect.tryPromise({
         try: async () => {
