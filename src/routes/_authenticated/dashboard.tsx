@@ -225,10 +225,6 @@ function DashboardPage() {
             />
           </div>
         ) : null}
-
-        <p className="mt-6 text-muted-foreground text-sm">
-          {copy.timeZone}: {organization.timeZone.replaceAll("_", " ")}
-        </p>
       </div>
     </main>
   );

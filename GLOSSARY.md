@@ -49,6 +49,7 @@ _Avoid_: Product, appointment type
 The recurring weekly windows when an Organization accepts Bookings. Booking
 Hours are continuous windows, not Slots, and do not have a Service duration.
 They use the Organization's configured time zone and continue until changed.
+The Owner-facing English UI labels them "Bookable hours."
 _Avoid_: Availability Period, Slot, opening hours
 
 **Date Exception**:

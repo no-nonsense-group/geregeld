@@ -90,7 +90,6 @@ export const organizationCopy = {
             "Je boekingstijden kunnen nu niet worden opgeslagen. Probeer het opnieuw.",
         },
       },
-      timeZone: "Tijdzone",
       settings: "Bedrijfsinstellingen",
     },
     settings: {
@@ -217,22 +216,22 @@ export const organizationCopy = {
       bookings: "Bookings",
       bookingsValue: "0 today",
       bookingsEmpty: "New bookings will appear here.",
-      availability: "Booking hours",
+      availability: "Bookable hours",
       availabilityValue: "Not set yet",
       availabilityEmpty: "Set when customers can book with you.",
       availabilityConfigured: (count: number) =>
         `${count} ${count === 1 ? "day" : "days"} open`,
       availabilityNoUpcoming: "Closed this week",
       availabilitySchedule: "Regular hours and date exceptions",
-      editAvailability: "Manage booking hours",
+      editAvailability: "Manage hours",
       closeAvailability: "Close editor",
       weekOverview: "Weekly overview",
       weekdaysShort: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       availabilityEditor: {
-        title: "Booking hours",
+        title: "Bookable hours",
         close: "Close editor",
         description:
-          "Set when customers can book. Service duration is handled separately.",
+          "Set when clients can book. Service duration is handled separately.",
         timeZoneOnly: "All times use your business time zone.",
         regularTab: "Regular hours",
         exceptionsTab: "Date exceptions",
@@ -247,7 +246,7 @@ export const organizationCopy = {
         removeHours: "Remove hours",
         saveRegular: "Save regular hours",
         saving: "Saving...",
-        saved: "Your booking hours have been saved.",
+        saved: "Your bookable hours have been saved.",
         exceptionsTitle: "Different hours for specific dates",
         exceptionsDescription:
           "Close a date or use different hours for a holiday, time off, or a one-off change.",
@@ -268,10 +267,9 @@ export const organizationCopy = {
           invalid:
             "Check the date and times. Hours must stay within one day and cannot overlap.",
           unavailable:
-            "Your booking hours cannot be saved right now. Try again.",
+            "Your bookable hours cannot be saved right now. Try again.",
         },
       },
-      timeZone: "Time zone",
       settings: "Business settings",
     },
     settings: {
@@ -291,7 +289,7 @@ export const organizationCopy = {
         namePlaceholder: "For example, Studio North",
         timeZoneLabel: "Time zone",
         timeZoneHint:
-          "Booking hours keep the same local clock times when you change this.",
+          "Bookable hours keep the same local clock times when you change this.",
         save: "Save changes",
         saving: "Saving changes...",
         saved: "Your business details have been saved.",
@@ -304,7 +302,7 @@ export const organizationCopy = {
       timeZoneDialog: {
         title: "Change time zone?",
         description:
-          "Existing bookings keep their scheduled moments. Booking Hours and date exceptions keep their local clock times and will use the new time zone.",
+          "Existing bookings keep their scheduled moments. Bookable hours and date exceptions keep their local clock times and will use the new time zone.",
         cancel: "Keep current time zone",
         confirm: "Change time zone",
       },
@@ -340,7 +338,7 @@ export const organizationCopy = {
         dialog: {
           title: "Permanently delete this business?",
           description:
-            "This deletes your business, Booking Hours, bookings, user registration, and active sessions. You will be signed out. This cannot be undone.",
+            "This deletes your business, bookable hours, bookings, user registration, and active sessions. You will be signed out. This cannot be undone.",
           acknowledge:
             "I understand that my business and user registration will be permanently deleted.",
           back: "Cancel",
