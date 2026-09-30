@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 18" role="img" aria-label="Flag of the Netherlands">
+  <defs>
+    <clipPath id="rounded-flag">
+      <rect width="24" height="18" rx="3" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#rounded-flag)">
+    <path fill="#ae1c28" d="M0 0h24v6H0z" />
+    <path fill="#fff" d="M0 6h24v6H0z" />
+    <path fill="#21468b" d="M0 12h24v6H0z" />
+  </g>
+</svg>

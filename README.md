@@ -1,8 +1,8 @@
 # Geregeld
 
 Geregeld is scheduling software for independent professionals and small service
-businesses. Owners publish services and availability. Clients book and manage
-appointments without creating an account.
+businesses. Owners manage services, tables, rooms and availability. Public client
+booking is planned.
 
 ## Documentation
 
@@ -66,8 +66,10 @@ For local database work, apply pending migrations before starting the app:
 bun run db:migrate
 ```
 
-The TypeScript schema in `src/platform/database/schema.ts` is the source of
-truth. After changing it, generate and review a migration:
+The PostgreSQL and SQLite definitions in `src/platform/database/schema.pg.ts`
+and `src/platform/database/schema.sqlite.ts` are the source of truth. Keep both
+in sync; `schema.ts` selects the configured engine at runtime. After changing
+them, generate and review a migration for each engine:
 
 ```sh
 bun run db:generate
@@ -90,3 +92,7 @@ test-only variable:
 ```sh
 DASHBOARD_TEST_DATABASE_URL=postgresql://localhost/geregeld_test bun run test
 ```
+
+The greenfield migration history has one initial migration per engine. Start
+with an empty database when applying it; databases created with the previous
+migration history must be reset or have their migration record rebaselined.

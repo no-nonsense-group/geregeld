@@ -4,6 +4,8 @@ import { organizationCopy } from "#/content/organization";
 import { getAvailabilityFn } from "#/contexts/availability/slices/manage-availability/functions";
 import { getBookingSetupFn } from "#/contexts/booking/slices/manage-booking/functions";
 
+import { resolveUiLocale } from "#/shared/i18n";
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
   loader: async ({ context, deps }) => {
@@ -34,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
     };
   },
   head: ({ match }) => {
-    const copy = organizationCopy[match.search.lang].dashboard;
+    const copy = organizationCopy[resolveUiLocale(match.search.lang)].dashboard;
 
     return {
       meta: [
@@ -47,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function DashboardPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const { organization, availability, setup, unavailable } =
     Route.useLoaderData();
   const router = useRouter();

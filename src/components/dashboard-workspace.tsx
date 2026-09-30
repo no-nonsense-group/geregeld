@@ -1,7 +1,9 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  Building2,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -15,7 +17,9 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { AppControls } from "#/components/app-controls";
 import { AvailabilityEditor } from "#/components/availability-editor";
+import { Brand } from "#/components/brand";
 import { Button } from "#/components/ui/button";
 import { dashboardCopy } from "#/content/dashboard";
 import { organizationCopy } from "#/content/organization";
@@ -227,15 +231,15 @@ export function DashboardWorkspace({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-card px-5 py-5 pr-52 sm:px-8 sm:pr-56">
-        <a
-          href={`/?lang=${lang}`}
-          className="font-heading font-semibold text-xl tracking-tight"
-        >
-          Geregeld<span className="text-primary">.</span>
-        </a>
+      <header className="border-border border-b bg-card">
+        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
+          <Link to="/dashboard" search={{ lang }}>
+            <Brand />
+          </Link>
+          <AppControls authenticated locale={lang} />
+        </div>
       </header>
-      <div className="mx-auto grid max-w-7xl md:min-h-[calc(100vh-81px)] md:grid-cols-[208px_1fr]">
+      <div className="mx-auto grid max-w-7xl md:min-h-[calc(100vh-72px)] md:grid-cols-[208px_1fr]">
         <aside className="border-border border-b px-5 py-5 md:border-r md:border-b-0 md:py-8">
           <p className="truncate font-semibold" title={organization.name}>
             {organization.name}
@@ -243,7 +247,7 @@ export function DashboardWorkspace({
           <p className="mt-1 text-muted-foreground text-xs">{c[mode]}</p>
           <nav
             aria-label={lang === "nl" ? "Dashboard" : "Dashboard"}
-            className="mt-5 grid grid-cols-3 gap-1 md:mt-8 md:flex md:flex-col"
+            className="mt-5 grid grid-cols-4 gap-1 md:mt-8 md:flex md:flex-col"
           >
             {(
               [
@@ -270,6 +274,14 @@ export function DashboardWorkspace({
                 {item.label}
               </button>
             ))}
+            <Link
+              to="/settings"
+              search={{ lang }}
+              className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-2 py-2.5 text-center text-muted-foreground text-xs transition hover:bg-muted sm:text-sm md:flex-row md:gap-2.5 md:px-3 md:text-left"
+            >
+              <Building2 aria-hidden="true" className="size-4" />
+              {lang === "nl" ? "Bedrijf" : "Business"}
+            </Link>
           </nav>
           <p className="mt-8 hidden text-muted-foreground text-xs leading-relaxed md:block">
             {organization.timeZone.replaceAll("_", " ")}

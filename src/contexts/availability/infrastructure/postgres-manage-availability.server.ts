@@ -11,7 +11,6 @@ import {
   lt,
   ne,
   or,
-  sql,
 } from "drizzle-orm";
 import { Effect, Layer } from "effect";
 
@@ -27,6 +26,8 @@ import {
   bookable_resource,
   organization,
 } from "#/platform/database/schema";
+
+import { acquireOrganizationLock } from "#/platform/database/write-lock.server";
 
 function scopeFilter(input: { organizationId: string; resourceId?: string }) {
   return and(
@@ -175,9 +176,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
         try: () =>
           database.transaction(async (transaction) => {
             await settingsFor(input, transaction);
-            await transaction.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
-            );
+            await acquireOrganizationLock(transaction, input.organizationId);
             await transaction
               .delete(availability_period)
               .where(
@@ -225,9 +224,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
         try: () =>
           database.transaction(async (transaction) => {
             await settingsFor(input, transaction);
-            await transaction.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
-            );
+            await acquireOrganizationLock(transaction, input.organizationId);
             const overlaps = await transaction
               .select({ id: availability_period.id })
               .from(availability_period)
@@ -288,9 +285,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
         try: () =>
           database.transaction(async (transaction) => {
             await settingsFor(input, transaction);
-            await transaction.execute(
-              sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
-            );
+            await acquireOrganizationLock(transaction, input.organizationId);
             const overlaps = await transaction
               .select({ id: availability_period.id })
               .from(availability_period)

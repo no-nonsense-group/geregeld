@@ -2,16 +2,19 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Check, Mail } from "lucide-react";
 import { type SubmitEvent, useEffect, useRef, useState } from "react";
 
+import { AppControls } from "#/components/app-controls";
+import { Brand } from "#/components/brand";
 import { Button } from "#/components/ui/button";
 import { registrationCopy } from "#/content/registration";
 import {
   completeRegistrationFn,
   requestRegistrationCodeFn,
 } from "#/contexts/identity/slices/register/functions";
+import { resolveUiLocale } from "#/shared/i18n";
 
 export const Route = createFileRoute("/register")({
   head: ({ match }) => {
-    const copy = registrationCopy[match.search.lang];
+    const copy = registrationCopy[resolveUiLocale(match.search.lang)];
 
     return {
       meta: [
@@ -32,7 +35,7 @@ type RegistrationError =
   | "UNAVAILABLE";
 
 function RegistrationPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const copy = registrationCopy[lang];
   const navigate = useNavigate();
   const codeInput = useRef<HTMLInputElement>(null);
@@ -125,19 +128,19 @@ function RegistrationPage() {
         aria-hidden="true"
       />
       <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
-        <a
-          href={`/?lang=${lang}`}
-          className="w-fit font-heading font-semibold text-xl tracking-[-0.04em]"
-          aria-label={copy.brandLabel}
-        >
-          Geregeld
-        </a>
+        <div className="flex items-center justify-between gap-4">
+          <a
+            href={`/?lang=${lang}`}
+            className="w-fit"
+            aria-label={copy.brandLabel}
+          >
+            <Brand />
+          </a>
+          <AppControls authenticated={false} locale={lang} />
+        </div>
 
         <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[1fr_30rem] lg:py-16">
           <section className="max-w-2xl">
-            <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
-              {copy.eyebrow}
-            </p>
             <h1 className="mt-5 text-balance font-heading font-semibold text-5xl leading-[0.94] tracking-[-0.06em] sm:text-7xl">
               {step === "email" ? copy.title : copy.codeTitle}
             </h1>

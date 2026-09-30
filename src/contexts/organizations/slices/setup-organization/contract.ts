@@ -38,7 +38,6 @@ export const Organization = Schema.Struct({
   id: OrganizationId,
   name: OrganizationName,
   timeZone: IanaTimeZone,
-  defaultAvailabilityPeriodMinutes: Schema.Int.pipe(Schema.between(1, 1440)),
   availabilityConfiguredAt: Schema.NullOr(Schema.DateFromSelf),
 });
 export type Organization = typeof Organization.Type;

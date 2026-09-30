@@ -2,9 +2,12 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Building2, Check, ChevronDown, Clock3 } from "lucide-react";
 import { type SubmitEvent, useEffect, useState } from "react";
 
+import { AppControls } from "#/components/app-controls";
+import { Brand } from "#/components/brand";
 import { Button } from "#/components/ui/button";
 import { organizationCopy } from "#/content/organization";
 import { setupOrganizationFn } from "#/contexts/organizations/slices/setup-organization/functions";
+import { resolveUiLocale } from "#/shared/i18n";
 
 const fallbackTimeZones = ["Europe/Amsterdam", "Europe/London", "UTC"];
 const timeZones =
@@ -26,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/setup")({
     return { unavailable: state.status === "unavailable" };
   },
   head: ({ match }) => {
-    const copy = organizationCopy[match.search.lang].setup;
+    const copy = organizationCopy[resolveUiLocale(match.search.lang)].setup;
 
     return {
       meta: [
@@ -41,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/setup")({
 type SetupError = "INVALID_INPUT" | "UNAVAILABLE";
 
 function SetupPage() {
-  const { lang } = Route.useSearch();
+  const lang = resolveUiLocale(Route.useSearch().lang);
   const { unavailable } = Route.useLoaderData();
   const copy = organizationCopy[lang].setup;
   const navigate = useNavigate();
@@ -95,12 +98,12 @@ function SetupPage() {
         aria-hidden="true"
       />
       <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col">
-        <a
-          href={`/?lang=${lang}`}
-          className="w-fit font-heading font-semibold text-xl tracking-[-0.04em]"
-        >
-          Geregeld
-        </a>
+        <div className="flex items-center justify-between gap-4">
+          <a href={`/dashboard?lang=${lang}`} className="w-fit">
+            <Brand />
+          </a>
+          <AppControls authenticated locale={lang} />
+        </div>
 
         <div className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[1fr_30rem] lg:py-16">
           <section className="max-w-2xl">

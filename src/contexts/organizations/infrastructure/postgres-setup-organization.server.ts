@@ -23,8 +23,6 @@ async function findForUser(userId: string) {
       id: organization.id,
       name: organization.name,
       timeZone: organization.timeZone,
-      defaultAvailabilityPeriodMinutes:
-        organization.defaultAvailabilityPeriodMinutes,
       availabilityConfiguredAt: organization.availabilityConfiguredAt,
     })
     .from(organization_membership)
@@ -40,8 +38,6 @@ async function findForUser(userId: string) {
         id: OrganizationId.make(record.id),
         name: OrganizationName.make(record.name),
         timeZone: IanaTimeZone.make(record.timeZone),
-        defaultAvailabilityPeriodMinutes:
-          record.defaultAvailabilityPeriodMinutes,
         availabilityConfiguredAt: record.availabilityConfiguredAt,
       })
     : Option.none();
@@ -64,8 +60,6 @@ export const PostgresSetupOrganizationLive = Layer.succeed(
                 id: organization.id,
                 name: organization.name,
                 timeZone: organization.timeZone,
-                defaultAvailabilityPeriodMinutes:
-                  organization.defaultAvailabilityPeriodMinutes,
                 availabilityConfiguredAt: organization.availabilityConfiguredAt,
               })
               .from(organization_membership)
@@ -81,8 +75,6 @@ export const PostgresSetupOrganizationLive = Layer.succeed(
                 id: OrganizationId.make(existing.id),
                 name: OrganizationName.make(existing.name),
                 timeZone: IanaTimeZone.make(existing.timeZone),
-                defaultAvailabilityPeriodMinutes:
-                  existing.defaultAvailabilityPeriodMinutes,
                 availabilityConfiguredAt: existing.availabilityConfiguredAt,
               };
             }
@@ -118,8 +110,6 @@ export const PostgresSetupOrganizationLive = Layer.succeed(
                   id: organization.id,
                   name: organization.name,
                   timeZone: organization.timeZone,
-                  defaultAvailabilityPeriodMinutes:
-                    organization.defaultAvailabilityPeriodMinutes,
                   availabilityConfiguredAt:
                     organization.availabilityConfiguredAt,
                 })
@@ -139,8 +129,6 @@ export const PostgresSetupOrganizationLive = Layer.succeed(
                 id: OrganizationId.make(concurrent.id),
                 name: OrganizationName.make(concurrent.name),
                 timeZone: IanaTimeZone.make(concurrent.timeZone),
-                defaultAvailabilityPeriodMinutes:
-                  concurrent.defaultAvailabilityPeriodMinutes,
                 availabilityConfiguredAt: concurrent.availabilityConfiguredAt,
               };
             }
@@ -157,8 +145,6 @@ export const PostgresSetupOrganizationLive = Layer.succeed(
               id: OrganizationId.make(created.id),
               name: OrganizationName.make(created.name),
               timeZone: IanaTimeZone.make(created.timeZone),
-              defaultAvailabilityPeriodMinutes:
-                created.defaultAvailabilityPeriodMinutes,
               availabilityConfiguredAt: created.availabilityConfiguredAt,
             };
           }),
