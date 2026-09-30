@@ -82,3 +82,11 @@ Commercial use requires a separate commercial license. See
 [`COMMERCIAL_LICENSE.md`](./COMMERCIAL_LICENSE.md) for details.
 
 Contact: danielagg@outlook.com
+
+Calendar isolation integration tests require an explicitly selected, migrated
+test database. They never use `DATABASE_URL` unless it is supplied through the
+test-only variable:
+
+```sh
+DASHBOARD_TEST_DATABASE_URL=postgresql://localhost/geregeld_test bun run test
+```

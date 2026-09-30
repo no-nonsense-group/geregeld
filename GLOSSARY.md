@@ -40,18 +40,19 @@ _Avoid_: Customer, User
 ## Scheduling
 
 **Service**:
-A bookable activity offered by an Organization.
+An optional, owner-defined activity offered by an Organization, with a name and
+duration. Multiple Services can share the same appointment Availability.
 _Avoid_: Product, appointment type
 
 **Availability**:
 The time periods on future calendar dates, interpreted only in its configured
-time zone, when an Organization is willing to accept Bookings. Availability
+time zone, when an Organization or a Bookable Resource is willing to accept Bookings. Availability
 alone does not guarantee that a Slot can be booked.
 _Avoid_: Opening hours, schedule
 
 **Availability Period**:
-A single interval on a specific date when an Organization is willing to accept
-one Booking. An Availability Period cannot cross into another calendar date.
+A single interval on a specific date when an Organization or one Bookable
+Resource is willing to accept one Booking. An Availability Period cannot cross into another calendar date.
 _Avoid_: Slot, block
 
 **Default Availability Period Duration**:
@@ -74,3 +75,24 @@ _Avoid_: Appointment, Slot, reservation
 The rules an Organization sets for creating, rescheduling, and canceling
 Bookings.
 _Avoid_: Configuration, settings
+
+**Booking Style**:
+The way an Organization presents its offer: Appointments, Tables, or Rooms.
+Changing Booking Style preserves the Organization's other offers and calendars.
+_Avoid_: Industry, business type
+
+**Bookable Resource**:
+An individually named table or room with its own Availability and maximum group
+size. One Booking occupies the whole Bookable Resource; its capacity is not a
+number of simultaneous Bookings.
+_Avoid_: Seat, inventory item
+
+**Capacity**:
+The maximum number of people in one Booking for a Bookable Resource. Tables are
+individual Bookable Resources, even when several have the same Capacity.
+_Avoid_: Number of bookings, availability
+
+**Paused Offer**:
+A Service or Bookable Resource that the Owner has temporarily made unavailable
+for new Bookings. Its details and Availability remain saved.
+_Avoid_: Deleted offer

@@ -66,9 +66,17 @@ export const organization_membership_role = pgEnum(
   ["owner"],
 );
 
+export const booking_mode = pgEnum("booking_mode", [
+  "appointments",
+  "tables",
+  "rooms",
+]);
+export const resource_kind = pgEnum("resource_kind", ["tables", "rooms"]);
+
 export const organization = pgTable("organization", {
   id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
   name: text("name").notNull(),
+  bookingMode: booking_mode("booking_mode"),
   timeZone: text("time_zone").notNull(),
   defaultAvailabilityPeriodMinutes: integer(
     "default_availability_period_minutes",
@@ -83,6 +91,50 @@ export const organization = pgTable("organization", {
     .notNull(),
 });
 
+export const bookable_resource = pgTable(
+  "bookable_resource",
+  {
+    id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    kind: resource_kind("kind").notNull(),
+    capacity: integer("capacity").notNull(),
+    active: boolean("active").default(true).notNull(),
+    defaultDurationMinutes: integer("default_duration_minutes")
+      .default(60)
+      .notNull(),
+    availabilityConfiguredAt: timestamp("availability_configured_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bookable_resource_org_idx").on(table.organizationId),
+    check("resource_capacity_check", sql`${table.capacity} BETWEEN 1 AND 1000`),
+  ],
+);
+
+export const bookable_service = pgTable(
+  "bookable_service",
+  {
+    id: uuid("id").default(sql`pg_catalog.gen_random_uuid()`).primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    durationMinutes: integer("duration_minutes").notNull(),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("bookable_service_org_idx").on(table.organizationId),
+    check(
+      "service_duration_check",
+      sql`${table.durationMinutes} BETWEEN 1 AND 1440`,
+    ),
+  ],
+);
+
 export const availability_period = pgTable(
   "availability_period",
   {
@@ -90,6 +142,9 @@ export const availability_period = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
+    resourceId: uuid("resource_id").references(() => bookable_resource.id, {
+      onDelete: "restrict",
+    }),
     date: date("date", { mode: "string" }).notNull(),
     startMinute: integer("start_minute").notNull(),
     endMinute: integer("end_minute").notNull(),

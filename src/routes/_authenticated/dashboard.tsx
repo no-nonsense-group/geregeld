@@ -1,12 +1,8 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { CalendarDays, ChevronDown, Clock3 } from "lucide-react";
-import { useState } from "react";
-
-import { AvailabilityEditor } from "#/components/availability-editor";
-import { Button } from "#/components/ui/button";
+import { DashboardWorkspace } from "#/components/dashboard-workspace";
 import { organizationCopy } from "#/content/organization";
 import { getAvailabilityFn } from "#/contexts/availability/slices/manage-availability/functions";
-import { addLocalDays } from "#/contexts/availability/slices/manage-availability/local-date";
+import { getBookingSetupFn } from "#/contexts/booking/slices/manage-booking/functions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   loaderDeps: ({ search }) => ({ lang: search.lang }),
@@ -21,13 +17,18 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       return {
         organization: undefined,
         availability: undefined,
+        setup: undefined,
         unavailable: true as const,
       };
     }
 
-    const availability = await getAvailabilityFn({ data: {} });
+    const [availability, setup] = await Promise.all([
+      getAvailabilityFn({ data: {} }),
+      getBookingSetupFn(),
+    ]);
     return {
       organization: state.organization,
+      setup: setup.ok ? setup.value : undefined,
       availability: availability.ok ? availability.value : undefined,
       unavailable: false as const,
     };
@@ -47,167 +48,36 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function DashboardPage() {
   const { lang } = Route.useSearch();
-  const { organization, availability, unavailable } = Route.useLoaderData();
-  const allCopy = organizationCopy[lang];
-  const copy = allCopy.dashboard;
+  const { organization, availability, setup, unavailable } =
+    Route.useLoaderData();
   const router = useRouter();
-  const [editorOpen, setEditorOpen] = useState(false);
-
-  if (unavailable || !organization) {
+  if (unavailable || !organization || !setup) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-5 text-foreground">
-        <p role="alert" className="text-muted-foreground">
-          {allCopy.unavailable}
-        </p>
+        <div className="text-center">
+          <p role="alert" className="text-muted-foreground">
+            {organizationCopy[lang].unavailable}
+          </p>
+          <button
+            type="button"
+            className="mt-4 underline"
+            onClick={() => router.invalidate()}
+          >
+            {lang === "nl" ? "Opnieuw proberen" : "Try again"}
+          </button>
+        </div>
       </main>
     );
   }
-
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-card/80 py-5 pr-52 pl-5 backdrop-blur sm:pl-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <a
-            href={`/?lang=${lang}`}
-            className="font-heading font-semibold text-xl tracking-[-0.04em]"
-          >
-            Geregeld
-          </a>
-          <span className="hidden max-w-64 truncate rounded-full bg-muted px-4 py-2 font-semibold text-sm sm:inline">
-            {organization.name}
-          </span>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
-        <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
-          {copy.eyebrow}
-        </p>
-        <h1 className="mt-4 max-w-3xl text-balance font-heading font-semibold text-4xl tracking-[-0.055em] sm:text-6xl">
-          {copy.title(organization.name)}
-        </h1>
-        <p className="mt-5 max-w-2xl text-lg text-muted-foreground leading-relaxed">
-          {copy.description}
-        </p>
-
-        <section className="mt-12 grid gap-5 md:grid-cols-2">
-          <article className="rounded-3xl border border-border bg-card p-6 shadow-[0_24px_60px_-46px_oklch(0.23_0.035_151/0.4)] sm:p-8">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-heading font-semibold text-xl">
-                {copy.availability}
-              </h2>
-              <span className="grid size-11 place-items-center rounded-2xl bg-accent text-primary">
-                <Clock3 aria-hidden="true" className="size-5" />
-              </span>
-            </div>
-            <p className="mt-8 font-heading font-semibold text-3xl tracking-[-0.04em]">
-              {!availability?.configured
-                ? copy.availabilityValue
-                : availability.totalFuturePeriods === 0
-                  ? copy.availabilityNoUpcoming
-                  : copy.availabilityConfigured}
-            </p>
-            <p className="mt-2 text-muted-foreground text-sm">
-              {!availability?.configured
-                ? copy.availabilityEmpty
-                : copy.availabilityPeriods(availability.periods.length)}
-            </p>
-
-            {availability ? (
-              <div className="mt-6">
-                <p className="font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]">
-                  {copy.weekOverview}
-                </p>
-                <div className="mt-3 grid grid-cols-7 gap-1.5">
-                  {Array.from({ length: 7 }, (_, index) => {
-                    const date = addLocalDays(availability.rangeFrom, index);
-                    const count = availability.periods.filter(
-                      (period) => period.date === date,
-                    ).length;
-                    return (
-                      <div
-                        key={date}
-                        className="rounded-xl bg-muted px-1 py-2 text-center"
-                        title={date}
-                      >
-                        <span className="block text-muted-foreground text-[0.65rem] uppercase">
-                          {copy.weekdaysShort[index]}
-                        </span>
-                        <span className="mt-1 block font-semibold text-sm">
-                          {count}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="mt-4 text-muted-foreground text-sm">
-                  {copy.defaultPeriod}: {availability.defaultDurationMinutes}{" "}
-                  min
-                </p>
-              </div>
-            ) : null}
-
-            <Button
-              type="button"
-              className="mt-6 w-full"
-              variant={availability?.configured ? "outline" : "default"}
-              onClick={() => {
-                setEditorOpen((open) => !open);
-                requestAnimationFrame(() =>
-                  document
-                    .querySelector("#availability-editor")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-                );
-              }}
-              disabled={!availability}
-              aria-expanded={editorOpen}
-              aria-controls="availability-editor"
-            >
-              {editorOpen ? copy.closeAvailability : copy.editAvailability}
-              <ChevronDown
-                aria-hidden="true"
-                className={`transition-transform ${editorOpen ? "rotate-180" : ""}`}
-              />
-            </Button>
-          </article>
-
-          <article className="rounded-3xl border border-border bg-card p-6 shadow-[0_24px_60px_-46px_oklch(0.23_0.035_151/0.4)] sm:p-8">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-heading font-semibold text-xl">
-                {copy.bookings}
-              </h2>
-              <span className="grid size-11 place-items-center rounded-2xl bg-accent text-primary">
-                <CalendarDays aria-hidden="true" className="size-5" />
-              </span>
-            </div>
-            <p className="mt-8 font-heading font-semibold text-3xl tracking-[-0.04em]">
-              {copy.bookingsValue}
-            </p>
-            <p className="mt-2 text-muted-foreground text-sm">
-              {copy.bookingsEmpty}
-            </p>
-          </article>
-        </section>
-
-        {editorOpen && availability ? (
-          <div className="mt-5">
-            <AvailabilityEditor
-              copy={copy.availabilityEditor}
-              initial={availability}
-              lang={lang}
-              timeZone={organization.timeZone}
-              onClose={() => setEditorOpen(false)}
-              onSaved={async () => {
-                await router.invalidate();
-              }}
-            />
-          </div>
-        ) : null}
-
-        <p className="mt-6 text-muted-foreground text-sm">
-          {copy.timeZone}: {organization.timeZone.replaceAll("_", " ")}
-        </p>
-      </div>
-    </main>
+    <DashboardWorkspace
+      organization={organization}
+      setup={setup}
+      initial={availability}
+      lang={lang}
+      onReload={async () => {
+        await router.invalidate();
+      }}
+    />
   );
 }

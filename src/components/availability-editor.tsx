@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Pencil,
   Plus,
   Settings2,
   Trash2,
@@ -56,6 +57,7 @@ type EditorCopy = Widen<
 >;
 
 interface AvailabilityEditorProps {
+  readonly resourceId?: string;
   readonly copy: EditorCopy;
   readonly initial: AvailabilityOverview;
   readonly lang: UiLocale;
@@ -153,6 +155,12 @@ function generatedForRanges(
   durationMinutes: number,
 ) {
   const generated: Array<WeeklyRange> = [];
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes < 1 ||
+    durationMinutes > 1440
+  )
+    return generated;
   for (const range of ranges) {
     for (
       let startMinute = range.startMinute;
@@ -194,6 +202,7 @@ function actionError(error: string): EditorError {
 }
 
 export function AvailabilityEditor({
+  resourceId,
   copy,
   initial,
   lang,
@@ -218,6 +227,7 @@ export function AvailabilityEditor({
     startSlot: number;
     currentSlot: number;
   }>();
+  const [editingRange, setEditingRange] = useState<WeeklyRange>();
   const [exactDialogOpen, setExactDialogOpen] = useState(false);
   const [exactInput, setExactInput] = useState<ExactRangeInput>({
     dayOfWeek: 1,
@@ -256,10 +266,12 @@ export function AvailabilityEditor({
   );
   const currentLocal = localNow(timeZone, new Date());
   const bulkCount = useMemo(() => {
-    if (endDate < startDate) {
+    if (!startDate || !endDate || endDate < startDate) {
       return 0;
     }
 
+    if (localDateToEpochDay(endDate) - localDateToEpochDay(startDate) > 364)
+      return 0;
     let count = 0;
     const startDay = localDateToEpochDay(startDate);
     const endDay = localDateToEpochDay(endDate);
@@ -305,10 +317,6 @@ export function AvailabilityEditor({
     return () => window.removeEventListener("pointerup", finishDraw);
   }, [drag, finishDraw]);
 
-  function setPresetDuration(minutes: number) {
-    setDuration(minutes);
-  }
-
   function addExactRange() {
     const startMinute = timeToMinute(exactInput.start);
     const endMinute = timeToMinute(exactInput.end);
@@ -326,11 +334,12 @@ export function AvailabilityEditor({
     setError(undefined);
     setRanges((current) =>
       normalizeRanges([
-        ...current,
+        ...current.filter((range) => range !== editingRange),
         { dayOfWeek: exactInput.dayOfWeek, startMinute, endMinute },
       ]),
     );
     setExactDialogOpen(false);
+    setEditingRange(undefined);
   }
 
   async function saveDefaultDuration() {
@@ -345,7 +354,7 @@ export function AvailabilityEditor({
     setIsSavingDefault(true);
     try {
       const result = await updateDefaultAvailabilityDurationFn({
-        data: { minutes: defaultDuration },
+        data: { resourceId, minutes: defaultDuration },
       });
       if (!result.ok) {
         setError(actionError(result.error));
@@ -363,7 +372,7 @@ export function AvailabilityEditor({
 
   async function loadWeek(from: string) {
     const result = await getAvailabilityFn({
-      data: { from, to: addLocalDays(from, 6) },
+      data: { resourceId, from, to: addLocalDays(from, 6) },
     });
     if (result.ok) {
       setWeek(result.value);
@@ -387,7 +396,7 @@ export function AvailabilityEditor({
     setIsApplying(true);
     try {
       const existing = await getAvailabilityFn({
-        data: { from: startDate, to: endDate },
+        data: { resourceId, from: startDate, to: endDate },
       });
       if (!existing.ok) {
         setError(actionError(existing.error));
@@ -402,6 +411,7 @@ export function AvailabilityEditor({
 
       const result = await applyWeeklyAvailabilityFn({
         data: {
+          resourceId,
           startDate,
           endDate,
           durationMinutes: duration,
@@ -460,6 +470,7 @@ export function AvailabilityEditor({
       const result = editingId
         ? await updateAvailabilityPeriodFn({
             data: {
+              resourceId,
               id: editingId,
               date: manualDate,
               startMinute,
@@ -467,7 +478,7 @@ export function AvailabilityEditor({
             },
           })
         : await createAvailabilityPeriodFn({
-            data: { date: manualDate, startMinute, endMinute },
+            data: { resourceId, date: manualDate, startMinute, endMinute },
           });
       if (!result.ok) {
         setError(actionError(result.error));
@@ -493,7 +504,7 @@ export function AvailabilityEditor({
     setError(undefined);
     try {
       const result = await deleteAvailabilityPeriodFn({
-        data: { id: period.id },
+        data: { resourceId, id: period.id },
       });
       if (!result.ok) {
         setError(actionError(result.error));
@@ -521,7 +532,7 @@ export function AvailabilityEditor({
       id="availability-editor"
       className="rounded-3xl border border-border bg-card p-5 shadow-[0_28px_70px_-48px_oklch(0.23_0.035_151/0.45)] sm:p-8"
     >
-      <div className="flex items-start justify-between gap-5 pr-36 sm:pr-44">
+      <div className="flex items-start justify-between gap-5">
         <div>
           <p className="font-semibold text-primary text-sm uppercase tracking-[0.14em]">
             {copy.title}
@@ -545,65 +556,70 @@ export function AvailabilityEditor({
         </Button>
       </div>
 
-      <div className="mt-7 rounded-2xl bg-muted/65 p-4 sm:flex sm:items-end sm:justify-between sm:gap-6">
-        <div>
-          <label
-            htmlFor="default-availability-duration"
-            className="font-semibold text-sm"
-          >
-            {copy.defaultDuration}
-          </label>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {durationPresets.map((minutes) => (
-              <Button
-                key={minutes}
-                type="button"
-                size="sm"
-                variant={defaultDuration === minutes ? "default" : "outline"}
-                onClick={() => setDefaultDuration(minutes)}
-              >
-                {minutes} min
-              </Button>
-            ))}
-            <div className="flex items-center gap-2">
-              <input
-                id="default-availability-duration"
-                type="number"
-                min={1}
-                max={1440}
-                value={defaultDuration}
-                onChange={(event) =>
-                  setDefaultDuration(Number(event.target.value))
-                }
-                className="h-9 w-24 rounded-xl border border-input bg-background px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
-              />
-              <span className="text-muted-foreground text-sm">
-                {copy.minutes}
-              </span>
+      <details className="mt-5 rounded-xl border border-border px-4 py-3">
+        <summary className="cursor-pointer font-medium text-sm">
+          {copy.defaultDuration}: {defaultDuration} min
+        </summary>
+        <div className="mt-7 rounded-2xl bg-muted/65 p-4 sm:flex sm:items-end sm:justify-between sm:gap-6">
+          <div>
+            <label
+              htmlFor="default-availability-duration"
+              className="font-semibold text-sm"
+            >
+              {copy.defaultDuration}
+            </label>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {durationPresets.map((minutes) => (
+                <Button
+                  key={minutes}
+                  type="button"
+                  size="sm"
+                  variant={defaultDuration === minutes ? "default" : "outline"}
+                  onClick={() => setDefaultDuration(minutes)}
+                >
+                  {minutes} min
+                </Button>
+              ))}
+              <div className="flex items-center gap-2">
+                <input
+                  id="default-availability-duration"
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={defaultDuration}
+                  onChange={(event) =>
+                    setDefaultDuration(Number(event.target.value))
+                  }
+                  className="h-9 w-24 rounded-xl border border-input bg-background px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
+                />
+                <span className="text-muted-foreground text-sm">
+                  {copy.minutes}
+                </span>
+              </div>
             </div>
+            {defaultDuration === 1440 ? (
+              <p className="mt-2 max-w-xl text-amber-700 text-sm">
+                {copy.fullDayWarning}
+              </p>
+            ) : null}
           </div>
-          {defaultDuration === 1440 ? (
-            <p className="mt-2 max-w-xl text-amber-700 text-sm">
-              {copy.fullDayWarning}
-            </p>
-          ) : null}
+          <Button
+            type="button"
+            className="mt-3 sm:mt-0"
+            disabled={
+              isSavingDefault ||
+              defaultDuration < 1 ||
+              defaultDuration > 1440 ||
+              !Number.isInteger(defaultDuration) ||
+              defaultDuration === initial.defaultDurationMinutes
+            }
+            onClick={saveDefaultDuration}
+          >
+            <Settings2 aria-hidden="true" />
+            {isSavingDefault ? copy.saving : copy.saveDefault}
+          </Button>
         </div>
-        <Button
-          type="button"
-          className="mt-3 sm:mt-0"
-          disabled={
-            isSavingDefault ||
-            defaultDuration < 1 ||
-            defaultDuration > 1440 ||
-            !Number.isInteger(defaultDuration) ||
-            defaultDuration === initial.defaultDurationMinutes
-          }
-          onClick={saveDefaultDuration}
-        >
-          <Settings2 aria-hidden="true" />
-          {isSavingDefault ? copy.saving : copy.saveDefault}
-        </Button>
-      </div>
+      </details>
 
       <div className="mt-7 flex gap-2 border-border border-b" role="tablist">
         <button
@@ -648,6 +664,7 @@ export function AvailabilityEditor({
                 onChange={(event) => {
                   const next = event.target.value;
                   setStartDate(next);
+                  if (!next) return;
                   const maximum = addLocalDays(next, 364);
                   if (endDate < next) {
                     setEndDate(next);
@@ -663,7 +680,7 @@ export function AvailabilityEditor({
               <input
                 type="date"
                 min={startDate}
-                max={addLocalDays(startDate, 364)}
+                max={startDate ? addLocalDays(startDate, 364) : "2099-12-31"}
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
                 className="mt-2 h-11 w-full rounded-xl border border-input bg-card px-3 outline-none focus:border-ring focus:ring-3 focus:ring-ring/20"
@@ -672,37 +689,16 @@ export function AvailabilityEditor({
             <div className="text-sm">
               <span className="font-semibold">{copy.durationForRun}</span>
               <div className="mt-2 flex items-center gap-2">
-                <select
-                  value={
-                    durationPresets.includes(
-                      duration as (typeof durationPresets)[number],
-                    )
-                      ? duration
-                      : "custom"
-                  }
-                  onChange={(event) => {
-                    if (event.target.value !== "custom") {
-                      setPresetDuration(Number(event.target.value));
-                    }
-                  }}
-                  className="h-11 rounded-xl border border-input bg-card px-3 outline-none focus:border-ring"
-                >
-                  {durationPresets.map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes} min
-                    </option>
-                  ))}
-                  <option value="custom">{copy.customDuration}</option>
-                </select>
                 <input
                   type="number"
                   min={1}
                   max={1440}
-                  value={duration}
+                  value={duration || ""}
                   onChange={(event) => setDuration(Number(event.target.value))}
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-card px-3 outline-none focus:border-ring"
+                  className="h-11 min-w-0 w-full rounded-xl border border-input bg-card px-3 outline-none focus:border-ring"
                   aria-label={copy.durationForRun}
                 />
+                <span>{copy.minutes}</span>
               </div>
             </div>
           </div>
@@ -715,7 +711,9 @@ export function AvailabilityEditor({
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-2xl text-muted-foreground text-sm">
-              {copy.drawHint}
+              {lang === "nl"
+                ? "Kies je dagen en tijden. Voeg voor een pauze twee tijdvakken toe."
+                : "Choose your days and hours. For a break, add two time ranges."}
             </p>
             <div className="flex shrink-0 items-center gap-2">
               {ranges.length > 0 ? (
@@ -735,6 +733,7 @@ export function AvailabilityEditor({
                 aria-haspopup="dialog"
                 aria-expanded={exactDialogOpen}
                 onClick={() => {
+                  setEditingRange(undefined);
                   setExactInputInvalid(false);
                   setExactDialogOpen(true);
                 }}
@@ -750,6 +749,7 @@ export function AvailabilityEditor({
             onOpenChange={(open) => {
               setExactDialogOpen(open);
               if (!open) {
+                setEditingRange(undefined);
                 setExactInputInvalid(false);
               }
             }}
@@ -759,7 +759,7 @@ export function AvailabilityEditor({
               <Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
                 <Dialog.Popup className="relative w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl outline-none transition-[transform,opacity] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 sm:p-7">
                   <Dialog.Title className="pr-10 font-heading font-semibold text-2xl tracking-[-0.035em]">
-                    {copy.exactRangeTitle}
+                    {editingRange ? copy.edit : copy.exactRangeTitle}
                   </Dialog.Title>
                   <Dialog.Description className="mt-2 pr-8 text-muted-foreground text-sm leading-relaxed">
                     {copy.exactRangeDescription}
@@ -855,7 +855,7 @@ export function AvailabilityEditor({
                       </Dialog.Close>
                       <Button type="submit" size="lg">
                         <Plus aria-hidden="true" />
-                        {copy.addRange}
+                        {editingRange ? copy.updatePeriod : copy.addRange}
                       </Button>
                     </div>
                   </form>
@@ -864,112 +864,221 @@ export function AvailabilityEditor({
             </Dialog.Portal>
           </Dialog.Root>
 
-          <div className="mt-3 overflow-x-auto rounded-2xl border border-border bg-background">
-            <div className="min-w-[720px] p-4">
-              <div className="grid grid-cols-[52px_repeat(7,minmax(82px,1fr))]">
-                <span className="self-end pb-3 text-muted-foreground text-[0.65rem] uppercase tracking-[0.08em]">
-                  {copy.timeAxis}
-                </span>
-                {dayOrder.map((dayOfWeek, dayIndex) => {
-                  const periodCount = generated.filter(
-                    (period) => period.dayOfWeek === dayOfWeek,
-                  ).length;
-                  return (
-                    <div
-                      key={dayOfWeek}
-                      className="flex min-w-0 items-center justify-center gap-1.5 px-1 pb-3 text-center"
-                    >
-                      <span className="truncate font-semibold text-sm">
-                        {
-                          organizationCopy[lang].dashboard.weekdaysShort[
-                            dayIndex
-                          ]
-                        }
+          <div className="mt-4 divide-y divide-border rounded-2xl border border-border bg-background px-4">
+            {dayOrder.map((dayOfWeek, dayIndex) => {
+              const dayRanges = ranges.filter(
+                (range) => range.dayOfWeek === dayOfWeek,
+              );
+              return (
+                <div
+                  key={dayOfWeek}
+                  className="flex flex-wrap items-center gap-3 py-3"
+                >
+                  <label className="flex w-24 items-center gap-3 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-primary"
+                      checked={dayRanges.length > 0}
+                      onChange={(event) =>
+                        setRanges((current) =>
+                          event.target.checked
+                            ? [
+                                ...current,
+                                {
+                                  dayOfWeek,
+                                  startMinute: 540,
+                                  endMinute: 1020,
+                                },
+                              ]
+                            : current.filter(
+                                (range) => range.dayOfWeek !== dayOfWeek,
+                              ),
+                        )
+                      }
+                    />
+                    {organizationCopy[lang].dashboard.weekdaysShort[dayIndex]}
+                  </label>
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    {dayRanges.length === 0 ? (
+                      <span className="text-muted-foreground text-sm">
+                        {lang === "nl" ? "Niet beschikbaar" : "Unavailable"}
                       </span>
-                      {periodCount > 0 ? (
-                        <span className="rounded-full bg-accent px-1.5 py-0.5 font-semibold text-[0.65rem] text-primary tabular-nums">
-                          {periodCount}
+                    ) : (
+                      dayRanges.map((range) => (
+                        <div
+                          key={`${range.startMinute}-${range.endMinute}`}
+                          className="flex rounded-lg bg-accent"
+                        >
+                          <button
+                            type="button"
+                            className="flex items-center gap-2 rounded-l-lg px-3 py-2 text-sm tabular-nums hover:bg-primary/10"
+                            aria-label={`${copy.edit}: ${minuteToTime(range.startMinute)}–${minuteToTime(range.endMinute)}`}
+                            onClick={() => {
+                              setEditingRange(range);
+                              setExactInput({
+                                dayOfWeek,
+                                start: minuteToTime(range.startMinute),
+                                end: minuteToTime(range.endMinute),
+                              });
+                              setExactInputInvalid(false);
+                              setExactDialogOpen(true);
+                            }}
+                          >
+                            {minuteToTime(range.startMinute)} –{" "}
+                            {minuteToTime(range.endMinute)}
+                            <Pencil aria-hidden="true" className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-r-lg px-2 text-muted-foreground hover:bg-destructive/10"
+                            aria-label={`${copy.remove}: ${organizationCopy[lang].dashboard.weekdaysShort[dayIndex]} ${minuteToTime(range.startMinute)}–${minuteToTime(range.endMinute)}`}
+                            onClick={() =>
+                              setRanges((current) =>
+                                current.filter((item) => item !== range),
+                              )
+                            }
+                          >
+                            <X aria-hidden="true" className="size-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`${copy.addRange}: ${organizationCopy[lang].dashboard.weekdaysShort[dayIndex]}`}
+                    onClick={() => {
+                      setEditingRange(undefined);
+                      setExactInput({
+                        dayOfWeek,
+                        start: "09:00",
+                        end: "17:00",
+                      });
+                      setExactInputInvalid(false);
+                      setExactDialogOpen(true);
+                    }}
+                  >
+                    <Plus aria-hidden="true" />
+                    <span className="sr-only">{copy.addRange}</span>
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+          <details className="mt-5">
+            <summary className="cursor-pointer text-muted-foreground text-sm">
+              {lang === "nl"
+                ? "Liever tekenen in een weekoverzicht?"
+                : "Prefer to draw your hours on a calendar?"}
+            </summary>
+            <div className="mt-3 overflow-x-auto rounded-2xl border border-border bg-background">
+              <div className="min-w-[720px] p-4">
+                <div className="grid grid-cols-[52px_repeat(7,minmax(82px,1fr))]">
+                  <span className="self-end pb-3 text-muted-foreground text-[0.65rem] uppercase tracking-[0.08em]">
+                    {copy.timeAxis}
+                  </span>
+                  {dayOrder.map((dayOfWeek, dayIndex) => {
+                    const periodCount = generated.filter(
+                      (period) => period.dayOfWeek === dayOfWeek,
+                    ).length;
+                    return (
+                      <div
+                        key={dayOfWeek}
+                        className="flex min-w-0 items-center justify-center gap-1.5 px-1 pb-3 text-center"
+                      >
+                        <span className="truncate font-semibold text-sm">
+                          {
+                            organizationCopy[lang].dashboard.weekdaysShort[
+                              dayIndex
+                            ]
+                          }
                         </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-[52px_repeat(7,minmax(82px,1fr))]">
-                <div className="relative h-[576px] border-border border-r text-muted-foreground text-[0.65rem] tabular-nums">
-                  {[0, 360, 720, 1080, 1440].map((minute) => (
-                    <span
-                      key={minute}
-                      className={`absolute right-2 ${
-                        minute === 0
-                          ? "top-0"
-                          : minute === 1440
-                            ? "-translate-y-full"
-                            : "-translate-y-1/2"
-                      }`}
-                      style={{ top: `${(minute / 1440) * 100}%` }}
-                    >
-                      {minuteToTime(minute)}
-                    </span>
-                  ))}
+                        {periodCount > 0 ? (
+                          <span className="rounded-full bg-accent px-1.5 py-0.5 font-semibold text-[0.65rem] text-primary tabular-nums">
+                            {periodCount}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {dayOrder.map((dayOfWeek) => {
-                  const dayGenerated = generated.filter(
-                    (period) => period.dayOfWeek === dayOfWeek,
-                  );
-                  return (
-                    <div
-                      key={dayOfWeek}
-                      className="relative h-[576px] overflow-hidden border-border border-r bg-muted/35 last:rounded-r-xl"
-                    >
-                      <div className="absolute inset-0 grid touch-none grid-rows-[repeat(96,minmax(0,1fr))] select-none">
-                        {timelineSlots.map((slot) => (
+                <div className="grid grid-cols-[52px_repeat(7,minmax(82px,1fr))]">
+                  <div className="relative h-[576px] border-border border-r text-muted-foreground text-[0.65rem] tabular-nums">
+                    {[0, 360, 720, 1080, 1440].map((minute) => (
+                      <span
+                        key={minute}
+                        className={`absolute right-2 ${
+                          minute === 0
+                            ? "top-0"
+                            : minute === 1440
+                              ? "-translate-y-full"
+                              : "-translate-y-1/2"
+                        }`}
+                        style={{ top: `${(minute / 1440) * 100}%` }}
+                      >
+                        {minuteToTime(minute)}
+                      </span>
+                    ))}
+                  </div>
+
+                  {dayOrder.map((dayOfWeek) => {
+                    const dayGenerated = generated.filter(
+                      (period) => period.dayOfWeek === dayOfWeek,
+                    );
+                    return (
+                      <div
+                        key={dayOfWeek}
+                        className="relative h-[576px] overflow-hidden border-border border-r bg-muted/35 last:rounded-r-xl"
+                      >
+                        <div className="absolute inset-0 grid touch-none grid-rows-[repeat(96,minmax(0,1fr))] select-none">
+                          {timelineSlots.map((slot) => (
+                            <span
+                              key={slot}
+                              onPointerDown={(event: ReactPointerEvent) => {
+                                if (event.button !== 0) {
+                                  return;
+                                }
+                                event.preventDefault();
+                                setDrag({
+                                  dayOfWeek,
+                                  startSlot: slot,
+                                  currentSlot: slot,
+                                });
+                              }}
+                              onPointerEnter={() => {
+                                if (drag?.dayOfWeek === dayOfWeek) {
+                                  setDrag({ ...drag, currentSlot: slot });
+                                }
+                              }}
+                              className={`cursor-crosshair border-b outline-none ${
+                                (slot + 1) % 4 === 0
+                                  ? "border-border/70"
+                                  : "border-border/25"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        {dayGenerated.map((period) => (
                           <span
-                            key={slot}
-                            onPointerDown={(event: ReactPointerEvent) => {
-                              if (event.button !== 0) {
-                                return;
-                              }
-                              event.preventDefault();
-                              setDrag({
-                                dayOfWeek,
-                                startSlot: slot,
-                                currentSlot: slot,
-                              });
+                            key={`${period.startMinute}-${period.endMinute}`}
+                            aria-hidden="true"
+                            className="pointer-events-none absolute right-1 left-1 rounded-md bg-primary/85 ring-1 ring-primary-foreground/40"
+                            style={{
+                              top: `${(period.startMinute / 1440) * 100}%`,
+                              height: `${((period.endMinute - period.startMinute) / 1440) * 100}%`,
                             }}
-                            onPointerEnter={() => {
-                              if (drag?.dayOfWeek === dayOfWeek) {
-                                setDrag({ ...drag, currentSlot: slot });
-                              }
-                            }}
-                            className={`cursor-crosshair border-b outline-none ${
-                              (slot + 1) % 4 === 0
-                                ? "border-border/70"
-                                : "border-border/25"
-                            }`}
                           />
                         ))}
                       </div>
-                      {dayGenerated.map((period) => (
-                        <span
-                          key={`${period.startMinute}-${period.endMinute}`}
-                          aria-hidden="true"
-                          className="pointer-events-none absolute right-1 left-1 rounded-md bg-primary/85 ring-1 ring-primary-foreground/40"
-                          style={{
-                            top: `${(period.startMinute / 1440) * 100}%`,
-                            height: `${((period.endMinute - period.startMinute) / 1440) * 100}%`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-
+          </details>
           <div className="mt-5 flex flex-col gap-3 rounded-2xl bg-accent p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold">

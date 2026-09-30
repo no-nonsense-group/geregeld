@@ -18,6 +18,7 @@ type GatewayError =
 export interface AvailabilityGatewayService {
   readonly getOverview: (input: {
     readonly organizationId: OrganizationId;
+    readonly resourceId?: string;
     readonly today: string;
     readonly currentMinute: number;
     readonly from: string;
@@ -25,16 +26,19 @@ export interface AvailabilityGatewayService {
   }) => Effect.Effect<AvailabilityOverview, AvailabilityUnavailable>;
   readonly updateDefaultDuration: (input: {
     readonly organizationId: OrganizationId;
+    readonly resourceId?: string;
     readonly minutes: number;
   }) => Effect.Effect<void, AvailabilityUnavailable>;
   readonly replaceRange: (input: {
     readonly organizationId: OrganizationId;
+    readonly resourceId?: string;
     readonly from: string;
     readonly to: string;
     readonly periods: ReadonlyArray<DatedAvailabilityPeriod>;
   }) => Effect.Effect<void, AvailabilityUnavailable>;
   readonly createPeriod: (input: {
     readonly organizationId: OrganizationId;
+    readonly resourceId?: string;
     readonly period: DatedAvailabilityPeriod;
   }) => Effect.Effect<
     AvailabilityPeriod,
@@ -42,11 +46,13 @@ export interface AvailabilityGatewayService {
   >;
   readonly updatePeriod: (input: {
     readonly organizationId: OrganizationId;
+    readonly resourceId?: string;
     readonly id: string;
     readonly period: DatedAvailabilityPeriod;
   }) => Effect.Effect<AvailabilityPeriod, GatewayError>;
   readonly deletePeriod: (input: {
     readonly organizationId: OrganizationId;
+    readonly resourceId?: string;
     readonly id: string;
   }) => Effect.Effect<void, AvailabilityNotFound | AvailabilityUnavailable>;
 }

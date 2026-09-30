@@ -1,6 +1,18 @@
 import "@tanstack/react-start/server-only";
 
-import { and, asc, between, count, eq, gt, lt, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  between,
+  count,
+  eq,
+  gt,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { Effect, Layer } from "effect";
 
 import {
@@ -10,7 +22,54 @@ import {
 } from "#/contexts/availability/slices/manage-availability/contract";
 import { AvailabilityGateway } from "#/contexts/availability/slices/manage-availability/gateway";
 import { database } from "#/platform/database/drizzle.server";
-import { availability_period, organization } from "#/platform/database/schema";
+import {
+  availability_period,
+  bookable_resource,
+  organization,
+} from "#/platform/database/schema";
+
+function scopeFilter(input: { organizationId: string; resourceId?: string }) {
+  return and(
+    eq(availability_period.organizationId, input.organizationId),
+    input.resourceId
+      ? eq(availability_period.resourceId, input.resourceId)
+      : isNull(availability_period.resourceId),
+  );
+}
+
+// Both settings and ownership are resolved for the selected calendar.
+async function settingsFor(
+  input: {
+    organizationId: string;
+    resourceId?: string;
+  },
+  connection: Pick<typeof database, "select"> = database,
+) {
+  const rows = input.resourceId
+    ? await connection
+        .select({
+          configuredAt: bookable_resource.availabilityConfiguredAt,
+          defaultDurationMinutes: bookable_resource.defaultDurationMinutes,
+        })
+        .from(bookable_resource)
+        .where(
+          and(
+            eq(bookable_resource.id, input.resourceId),
+            eq(bookable_resource.organizationId, input.organizationId),
+          ),
+        )
+        .limit(1)
+    : await connection
+        .select({
+          configuredAt: organization.availabilityConfiguredAt,
+          defaultDurationMinutes: organization.defaultAvailabilityPeriodMinutes,
+        })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+  if (!rows[0]) throw new AvailabilityUnavailable();
+  return rows[0];
+}
 
 function mapCreateError(error: unknown) {
   return error instanceof AvailabilityConflict
@@ -41,19 +100,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
     getOverview: (input) =>
       Effect.tryPromise({
         try: async () => {
-          const [settings] = await database
-            .select({
-              configuredAt: organization.availabilityConfiguredAt,
-              defaultDurationMinutes:
-                organization.defaultAvailabilityPeriodMinutes,
-            })
-            .from(organization)
-            .where(eq(organization.id, input.organizationId))
-            .limit(1);
-
-          if (!settings) {
-            throw new AvailabilityUnavailable();
-          }
+          const settings = await settingsFor(input);
 
           const isFuture = or(
             gt(availability_period.date, input.today),
@@ -73,7 +120,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               .from(availability_period)
               .where(
                 and(
-                  eq(availability_period.organizationId, input.organizationId),
+                  scopeFilter(input),
                   between(availability_period.date, input.from, input.to),
                   isFuture,
                 ),
@@ -85,12 +132,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
             database
               .select({ value: count() })
               .from(availability_period)
-              .where(
-                and(
-                  eq(availability_period.organizationId, input.organizationId),
-                  isFuture,
-                ),
-              ),
+              .where(and(scopeFilter(input), isFuture)),
           ]);
 
           return {
@@ -108,14 +150,22 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
     updateDefaultDuration: (input) =>
       Effect.tryPromise({
         try: async () => {
-          const updated = await database
-            .update(organization)
-            .set({ defaultAvailabilityPeriodMinutes: input.minutes })
-            .where(eq(organization.id, input.organizationId))
-            .returning({ id: organization.id });
-
-          if (updated.length === 0) {
-            throw new AvailabilityUnavailable();
+          await settingsFor(input);
+          if (input.resourceId) {
+            await database
+              .update(bookable_resource)
+              .set({ defaultDurationMinutes: input.minutes })
+              .where(
+                and(
+                  eq(bookable_resource.id, input.resourceId),
+                  eq(bookable_resource.organizationId, input.organizationId),
+                ),
+              );
+          } else {
+            await database
+              .update(organization)
+              .set({ defaultAvailabilityPeriodMinutes: input.minutes })
+              .where(eq(organization.id, input.organizationId));
           }
         },
         catch: () => new AvailabilityUnavailable(),
@@ -124,6 +174,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
+            await settingsFor(input, transaction);
             await transaction.execute(
               sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
             );
@@ -131,7 +182,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               .delete(availability_period)
               .where(
                 and(
-                  eq(availability_period.organizationId, input.organizationId),
+                  scopeFilter(input),
                   between(availability_period.date, input.from, input.to),
                 ),
               );
@@ -140,15 +191,31 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               await transaction.insert(availability_period).values(
                 input.periods.map((period) => ({
                   organizationId: input.organizationId,
+                  resourceId: input.resourceId,
                   date: period.date,
                   startMinute: period.startMinute,
                   endMinute: period.endMinute,
                 })),
               );
-              await transaction
-                .update(organization)
-                .set({ availabilityConfiguredAt: new Date() })
-                .where(eq(organization.id, input.organizationId));
+              if (input.resourceId) {
+                await transaction
+                  .update(bookable_resource)
+                  .set({ availabilityConfiguredAt: new Date() })
+                  .where(
+                    and(
+                      eq(bookable_resource.id, input.resourceId),
+                      eq(
+                        bookable_resource.organizationId,
+                        input.organizationId,
+                      ),
+                    ),
+                  );
+              } else {
+                await transaction
+                  .update(organization)
+                  .set({ availabilityConfiguredAt: new Date() })
+                  .where(eq(organization.id, input.organizationId));
+              }
             }
           }),
         catch: () => new AvailabilityUnavailable(),
@@ -157,6 +224,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
+            await settingsFor(input, transaction);
             await transaction.execute(
               sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
             );
@@ -165,7 +233,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               .from(availability_period)
               .where(
                 and(
-                  eq(availability_period.organizationId, input.organizationId),
+                  scopeFilter(input),
                   eq(availability_period.date, input.period.date),
                   lt(availability_period.startMinute, input.period.endMinute),
                   gt(availability_period.endMinute, input.period.startMinute),
@@ -180,6 +248,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               .insert(availability_period)
               .values({
                 organizationId: input.organizationId,
+                resourceId: input.resourceId,
                 date: input.period.date,
                 startMinute: input.period.startMinute,
                 endMinute: input.period.endMinute,
@@ -194,10 +263,22 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               throw new AvailabilityUnavailable();
             }
 
-            await transaction
-              .update(organization)
-              .set({ availabilityConfiguredAt: new Date() })
-              .where(eq(organization.id, input.organizationId));
+            if (input.resourceId) {
+              await transaction
+                .update(bookable_resource)
+                .set({ availabilityConfiguredAt: new Date() })
+                .where(
+                  and(
+                    eq(bookable_resource.id, input.resourceId),
+                    eq(bookable_resource.organizationId, input.organizationId),
+                  ),
+                );
+            } else {
+              await transaction
+                .update(organization)
+                .set({ availabilityConfiguredAt: new Date() })
+                .where(eq(organization.id, input.organizationId));
+            }
             return created;
           }),
         catch: mapCreateError,
@@ -206,6 +287,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
       Effect.tryPromise({
         try: () =>
           database.transaction(async (transaction) => {
+            await settingsFor(input, transaction);
             await transaction.execute(
               sql`select pg_advisory_xact_lock(hashtextextended(${input.organizationId}, 0))`,
             );
@@ -214,7 +296,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
               .from(availability_period)
               .where(
                 and(
-                  eq(availability_period.organizationId, input.organizationId),
+                  scopeFilter(input),
                   eq(availability_period.date, input.period.date),
                   ne(availability_period.id, input.id),
                   lt(availability_period.startMinute, input.period.endMinute),
@@ -234,10 +316,7 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
                 endMinute: input.period.endMinute,
               })
               .where(
-                and(
-                  eq(availability_period.id, input.id),
-                  eq(availability_period.organizationId, input.organizationId),
-                ),
+                and(eq(availability_period.id, input.id), scopeFilter(input)),
               )
               .returning({
                 id: availability_period.id,
@@ -256,13 +335,11 @@ export const PostgresManageAvailabilityLive = Layer.succeed(
     deletePeriod: (input) =>
       Effect.tryPromise({
         try: async () => {
+          await settingsFor(input);
           const deleted = await database
             .delete(availability_period)
             .where(
-              and(
-                eq(availability_period.id, input.id),
-                eq(availability_period.organizationId, input.organizationId),
-              ),
+              and(eq(availability_period.id, input.id), scopeFilter(input)),
             )
             .returning({ id: availability_period.id });
           if (deleted.length === 0) {

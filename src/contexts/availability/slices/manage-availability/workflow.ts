@@ -23,6 +23,23 @@ import {
 const latestDate = "2099-12-31";
 const maximumBulkPeriods = 1000;
 
+function resourceScope(input: unknown) {
+  const value =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>).resourceId
+      : undefined;
+  if (value === undefined) return Effect.succeed({});
+  if (
+    typeof value !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  ) {
+    return Effect.fail(new InvalidAvailabilityInput());
+  }
+  return Effect.succeed({ resourceId: value });
+}
+
 function isIntegerBetween(
   value: unknown,
   minimum: number,
@@ -115,6 +132,7 @@ export function getAvailabilityOverview(
   now = new Date(),
 ) {
   return Effect.gen(function* () {
+    const scope = yield* resourceScope(input);
     const current = localNow(timeZone, now);
     let from = weekStartsOnMonday(current.date);
     let to = addLocalDays(from, 6);
@@ -141,6 +159,7 @@ export function getAvailabilityOverview(
     const gateway = yield* AvailabilityGateway;
     return yield* gateway.getOverview({
       organizationId,
+      ...scope,
       today: current.date,
       currentMinute: current.minute,
       from,
@@ -154,6 +173,7 @@ export function updateDefaultAvailabilityDuration(
   input: unknown,
 ) {
   return Effect.gen(function* () {
+    const scope = yield* resourceScope(input);
     if (
       !input ||
       typeof input !== "object" ||
@@ -165,6 +185,7 @@ export function updateDefaultAvailabilityDuration(
     const gateway = yield* AvailabilityGateway;
     yield* gateway.updateDefaultDuration({
       organizationId,
+      ...scope,
       minutes: (input as { minutes: number }).minutes,
     });
   }).pipe(Effect.withSpan("availability.updateDefaultDuration"));
@@ -177,6 +198,7 @@ export function applyWeeklyAvailability(
   now = new Date(),
 ) {
   return Effect.gen(function* () {
+    const scope = yield* resourceScope(input);
     if (!input || typeof input !== "object") {
       return yield* new InvalidAvailabilityInput();
     }
@@ -261,6 +283,7 @@ export function applyWeeklyAvailability(
     const gateway = yield* AvailabilityGateway;
     yield* gateway.replaceRange({
       organizationId,
+      ...scope,
       from: candidate.startDate,
       to: candidate.endDate,
       periods,
@@ -277,12 +300,13 @@ export function createAvailabilityPeriod(
   now = new Date(),
 ) {
   return Effect.gen(function* () {
+    const scope = yield* resourceScope(input);
     const period = yield* Effect.try({
       try: () => validateFuturePeriod(input, timeZone, now),
       catch: () => new InvalidAvailabilityInput(),
     });
     const gateway = yield* AvailabilityGateway;
-    return yield* gateway.createPeriod({ organizationId, period });
+    return yield* gateway.createPeriod({ organizationId, ...scope, period });
   }).pipe(Effect.withSpan("availability.createPeriod"));
 }
 
@@ -293,6 +317,7 @@ export function updateAvailabilityPeriod(
   now = new Date(),
 ) {
   return Effect.gen(function* () {
+    const scope = yield* resourceScope(input);
     if (
       !input ||
       typeof input !== "object" ||
@@ -319,6 +344,7 @@ export function updateAvailabilityPeriod(
     const gateway = yield* AvailabilityGateway;
     return yield* gateway.updatePeriod({
       organizationId,
+      ...scope,
       id: candidate.id as string,
       period,
     });
@@ -330,6 +356,7 @@ export function deleteAvailabilityPeriod(
   input: unknown,
 ) {
   return Effect.gen(function* () {
+    const scope = yield* resourceScope(input);
     if (
       !input ||
       typeof input !== "object" ||
@@ -342,6 +369,7 @@ export function deleteAvailabilityPeriod(
     const gateway = yield* AvailabilityGateway;
     yield* gateway.deletePeriod({
       organizationId,
+      ...scope,
       id: (input as { id: string }).id,
     });
   }).pipe(Effect.withSpan("availability.deletePeriod"));

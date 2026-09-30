@@ -263,3 +263,55 @@ it.effect("keeps overlap conflicts returned by persistence", () => {
     expect(error).toBeInstanceOf(AvailabilityConflict);
   }).pipe(Effect.provide(conflictLayer));
 });
+
+it.effect(
+  "passes the selected resource through creation and weekly replacement",
+  () => {
+    const gateway = makeGateway();
+    const resourceId = "dc017fdc-b8f3-4d35-9813-27041a4393cb";
+    return Effect.gen(function* () {
+      yield* createAvailabilityPeriod(
+        organizationId,
+        timeZone,
+        { resourceId, date: "2026-08-26", startMinute: 540, endMinute: 600 },
+        now,
+      );
+      yield* applyWeeklyAvailability(
+        organizationId,
+        timeZone,
+        {
+          resourceId,
+          startDate: "2026-08-26",
+          endDate: "2026-08-26",
+          durationMinutes: 60,
+          ranges: [{ dayOfWeek: 3, startMinute: 540, endMinute: 600 }],
+        },
+        now,
+      );
+      expect(gateway.created[0]).toMatchObject({ organizationId, resourceId });
+      expect(gateway.replacements[0]).toMatchObject({
+        organizationId,
+        resourceId,
+      });
+    }).pipe(Effect.provide(gateway.layer));
+  },
+);
+
+it.effect("rejects an invalid resource identifier before persistence", () => {
+  const gateway = makeGateway();
+  return Effect.gen(function* () {
+    const error = yield* createAvailabilityPeriod(
+      organizationId,
+      timeZone,
+      {
+        resourceId: "not-a-resource",
+        date: "2026-08-26",
+        startMinute: 540,
+        endMinute: 600,
+      },
+      now,
+    ).pipe(Effect.flip);
+    expect(error).toBeInstanceOf(InvalidAvailabilityInput);
+    expect(gateway.created).toHaveLength(0);
+  }).pipe(Effect.provide(gateway.layer));
+});
