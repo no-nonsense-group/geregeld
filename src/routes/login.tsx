@@ -61,7 +61,8 @@ function LoginPage() {
   const [error, setError] = useState<LoginError | undefined>(
     unavailable ? "UNAVAILABLE" : undefined,
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingCode, setIsSubmittingCode] = useState(false);
+  const [isSubmittingRequestNewCode, setIsSubmittingRequestNewCode] = useState(false);
   const [developmentCode, setDevelopmentCode] = useState<string>();
 
   useEffect(() => {
@@ -89,7 +90,7 @@ function LoginPage() {
 
   async function requestCode() {
     setError(undefined);
-    setIsSubmitting(true);
+    setIsSubmittingRequestNewCode(true);
 
     try {
       const result = await requestLoginCodeFn({ data: { email } });
@@ -107,7 +108,7 @@ function LoginPage() {
     } catch {
       setError("UNAVAILABLE");
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingRequestNewCode(false);
     }
   }
 
@@ -119,7 +120,7 @@ function LoginPage() {
   async function submitCode(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
-    setIsSubmitting(true);
+    setIsSubmittingCode(true);
 
     try {
       const result = await completeLoginFn({ data: { email, code } });
@@ -133,7 +134,7 @@ function LoginPage() {
     } catch {
       setError("UNAVAILABLE");
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingCode(false);
     }
   }
 
@@ -198,10 +199,10 @@ function LoginPage() {
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={unavailable || isSubmitting}
+                  disabled={unavailable || isSubmittingRequestNewCode}
                   className="mt-5 h-12 w-full font-semibold"
                 >
-                  {isSubmitting ? copy.requestingCode : copy.requestCode}
+                  {isSubmittingRequestNewCode ? copy.requestingCode : copy.requestCode}
                 </Button>
               </form>
             ) : (
@@ -240,20 +241,20 @@ function LoginPage() {
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={isSubmitting || code.length !== 6}
+                  disabled={isSubmittingCode || code.length !== 6}
                   className="mt-5 h-12 w-full font-semibold"
                 >
                   <Check aria-hidden="true" />
-                  {isSubmitting ? copy.completing : copy.complete}
+                  {isSubmittingCode ? copy.completing : copy.complete}
                 </Button>
                 <div className="mt-4 flex flex-col items-center gap-2 text-sm">
                   <button
                     type="button"
-                    disabled={isSubmitting}
+                    disabled={isSubmittingRequestNewCode}
                     onClick={requestCode}
                     className="font-semibold text-primary hover:underline disabled:opacity-50"
                   >
-                    {isSubmitting ? copy.resending : copy.resend}
+                    {isSubmittingRequestNewCode ? copy.resending : copy.resend}
                   </button>
                   <button
                     type="button"
